@@ -1,0 +1,96 @@
+package com.gmaps.example.Mal
+import kotlin.text.Regex
+
+val TOKEN_REGEX = Regex("[\\s,]*(~@|[\\[\\]{}()'`~^@]|\"(?:\\\\.|[^\\\\\"])*\"?|;.*|[^\\s\\[\\]{}('\"`,;)]*)")
+val ATOM_REGEX = Regex("(^-?[0-9]+$)|(^nil$)|(^true$)|(^false$)|^\"((?:\\\\.|[^\\\\\"])*)\"$|^\"(.*)$|:(.*)|(^[^\"]*$)")
+
+class Reader(sequence: Sequence<String>) {
+    val tokens = sequence.iterator()
+    var current = advance()
+
+    fun next() : String? { // """Set current to next token."""
+        var result = current
+        current = advance()
+        return result
+    }
+
+    fun peek(): String? = current // look at the current token
+
+    private fun advance(): String? = if (tokens.hasNext()) tokens.next() else null //get next token or null
+
+}
+
+fun read_str(input: String?) : MalType {
+    val seq = tokenizer(input!!)
+    if (seq == null) return NIL // return NIL
+    val reader = Reader(sequence = seq)
+    return read_form(reader)
+}
+
+fun tokenizer(input: String?) : Sequence<String>? {
+    if (input.isNullOrBlank()) return null
+    return TOKEN_REGEX.findAll(input)
+        .map({ it -> it.groups[1]?.value as String })
+        .filter({ it != "" && !it.startsWith(";")})
+}
+
+fun read_form(r : Reader) : MalType {
+    val nxt = r.peek()
+    return when (nxt) {
+        null -> throw MalContinue()
+        "("  -> read_list(r)
+        else -> read_atom(r)
+    }
+}
+
+fun read_list(r : Reader) : MalType {
+    return read_sequence(r, MalList(), ")")
+}
+
+private fun read_sequence(reader: Reader, sequence: IMutableSeq, end: String): MalType {
+    reader.next()
+
+    do {
+        val form = when (reader.peek()) {
+            null -> println("throw error")//throw MalReaderException("expected '$end', got EOF")
+            end  -> { reader.next(); null }
+            else -> read_form(reader)
+        }
+
+//        if (form != null) {
+//            sequence.conj_BANG(form)
+//        }
+    } while (form != null)
+
+    return sequence
+}
+
+fun read_atom(r: Reader) : MalType {
+    //TODO: impliment myself
+    val next = r.next() ?: throw MalReaderException("Unexpected null token")
+    val groups = ATOM_REGEX.find(next)?.groups ?: throw MalReaderException("Unrecognized token: " + next)
+
+    return if (groups[1]?.value != null) {
+        MalInteger(groups[1]?.value?.toLong() ?: throw MalReaderException("Error parsing number: " + next))
+    } else if (groups[2]?.value != null) {
+        NIL
+    } else if (groups[3]?.value != null) {
+        TRUE
+    } else if (groups[4]?.value != null) {
+        FALSE
+    } else if (groups[5]?.value != null) {
+        MalString((groups[5]?.value as String).replace(Regex("""\\(.)"""))
+        { m: MatchResult ->
+            if (m.groups[1]?.value == "n") "\n"
+            else m.groups[1]?.value.toString()
+        })
+    } else if (groups[6]?.value != null) {
+        throw MalReaderException("expected '\"', got EOF")
+    } else if (groups[7]?.value != null) {
+        MalKeyword(groups[7]?.value as String)
+    } else if (groups[8]?.value != null) {
+        MalSymbol(groups[8]?.value as String)
+    } else {
+        throw MalReaderException("Unrecognized token: " + next)
+    }
+}
