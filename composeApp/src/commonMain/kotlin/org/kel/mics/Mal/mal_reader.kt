@@ -1,4 +1,4 @@
-package com.gmaps.example.Mal
+package org.kel.mics.Mal
 import kotlin.text.Regex
 
 val TOKEN_REGEX = Regex("[\\s,]*(~@|[\\[\\]{}()'`~^@]|\"(?:\\\\.|[^\\\\\"])*\"?|;.*|[^\\s\\[\\]{}('\"`,;)]*)")

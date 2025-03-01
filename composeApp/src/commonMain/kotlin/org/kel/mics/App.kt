@@ -12,12 +12,11 @@ import androidx.compose.material.TextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.gmaps.example.Mal.mal_rep
+import org.kel.mics.Mal.mal_rep
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
-import kelmics.composeapp.generated.resources.Res
-import kelmics.composeapp.generated.resources.compose_multiplatform
+import org.kel.mics.Mal.mal_rep2
 
 @Composable
 @Preview
@@ -28,7 +27,7 @@ fun App() {
         var output = remember { mutableStateOf("") }
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             TextField(value = input.value, onValueChange = { input.value = it})
-            Button(onClick = { output.value = mal_rep(input.value) }) {
+            Button(onClick = { output.value = mal_rep2(input.value) }) {
                 Text("Evaluate")
             }
             Text(text=output.value.toString())

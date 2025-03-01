@@ -1,4 +1,4 @@
-package com.gmaps.example.Mal
+package org.kel.mics.Mal
 
 //fun mal_read(para: String) : String {
 //    return para

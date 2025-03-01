@@ -1,4 +1,4 @@
-package com.gmaps.example.Mal
+package org.kel.mics.Mal
 open class MalException(message: String?) : Exception(message), MalType {
     override var metadata: MalType = NIL
     override fun mal_print(): String {
@@ -27,12 +27,16 @@ interface MalType {
     var metadata: MalType
     fun with_meta(meta: MalType): MalType
     fun mal_print(): String = ""
+    fun getVal(): String = ""
 }
 
 open class MalConstant(val value: String) : MalType {
     override var metadata: MalType = NIL
     override fun mal_print(): String {
         return "<MalConstant #${value}>"
+    }
+    override fun getVal(): String {
+        return value.toString()
     }
 
     override fun equals(other: Any?): Boolean = other is MalConstant && value.equals(other.value)
@@ -191,8 +195,8 @@ class MalList(elements: MutableList<MalType> = mutableListOf(NIL)) : MalSequence
         TODO("Not yet implemented")
     }
 
-    override fun rest(): ISeq {
-        TODO("Not yet implemented")
+    override fun rest(): MalList {
+        return MalList(elements.removeFirst())
     }
 
     override fun slice(fromIndex: Int, toIndex: Int): ISeq {
