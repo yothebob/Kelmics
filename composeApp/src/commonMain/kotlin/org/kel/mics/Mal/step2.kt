@@ -17,12 +17,15 @@ fun mal_eval2(para: MalType, env: HashMap<String, MalType>) : MalType {
         para is MalList && para.count() == 0 -> return para
         para is MalList -> {
             if (para.count() == 0) return para
-            val evaluated = para
-            //val evaluated = para.elements.fold(MalList(), { a, b -> a.conj_BANG(mal_eval2(b, env)); a })
-            println(evaluated.first())
-            println(evaluated.first().getVal())
-            // if (evaluated.first() !is MalFunction) throw MalException("cannot execute non-function")
-            return (evaluated.first() as MalFunction).apply(para.removeFirst())
+            val evaluated = para.elements.fold(MalList(), { a, b ->
+                println("a,b: ${a.mal_print()} ${b.mal_print()}")
+                a.conj_BANG(mal_eval2(b, env)); a })
+            println("21: ${evaluated.first().mal_print()}")
+            if (evaluated.first() !is MalFunction) {
+                println("throw error, not a function")
+                return para
+            }
+            return (evaluated.first() as MalFunction).apply(evaluated.rest())
         }
 //        is MalVector -> return para.elements.fold(MalVector(), { a, b -> a.conj_BANG(mal_eval2(b, env)); a })
 //        is MalHashMap -> return para.elements.entries.fold(MalHashMap(), { a, b -> a.assoc_BANG(b.key, mal_eval2(b.value, env)); a })

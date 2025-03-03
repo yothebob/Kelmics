@@ -142,10 +142,10 @@ interface IMutableSeq : ISeq {
 abstract class MalSequence(val elements: MutableList<MalType>) : MalType, IMutableSeq {
     override fun mal_print(): String {
         var res = ""
-        val malSeqStr = elements.toList().forEach { malType ->
+        elements.toList().forEach { malType ->
             res += malType.mal_print()
         }.toString()
-        return "<MalSequence ${malSeqStr}>"
+        return "<MalSequence ${res}>"
     }
     override var metadata: MalType = NIL
 
@@ -164,13 +164,14 @@ abstract class MalSequence(val elements: MutableList<MalType>) : MalType, IMutab
                 && elements.asSequence().zip(other.seq()).all({ it -> it.first == it.second })
 }
 
-class MalList(elements: MutableList<MalType> = mutableListOf(NIL)) : MalSequence(elements) {
+class MalList(elements: MutableList<MalType> = mutableListOf()) : MalSequence(elements) {
     override fun mal_print(): String {
         var res = ""
-        val malListStr = elements.toList().forEach { malType ->
-            res += malType.mal_print()
-        }.toString()
-        return "<MalList ${malListStr}>"
+        // TODO: remove the nil print
+        elements.toList().forEach { malType ->
+            res += malType.mal_print() + " "
+        }
+        return "<MalList (${res})>"
     }
     //    constructor() : this(LinkedList<MalType>())
 //    constructor(s: ISeq) : this(s.seq().toCollection(LinkedList<MalType>()))
@@ -195,8 +196,8 @@ class MalList(elements: MutableList<MalType> = mutableListOf(NIL)) : MalSequence
         TODO("Not yet implemented")
     }
 
-    override fun rest(): MalList {
-        return MalList(elements.removeFirst())
+    override fun rest(): ISeq {
+        return MalVector(elements.drop(1).toCollection(ArrayList<MalType>()))
     }
 
     override fun slice(fromIndex: Int, toIndex: Int): ISeq {
