@@ -72,6 +72,10 @@ class MalSymbol(val value: String) : MalType {
     override var metadata: MalType = NIL
     override fun mal_print(): String = "<MalSymbol ${value.toString()}>"
 
+    override fun getVal(): String {
+        return value
+    }
+
     override fun equals(other: Any?): Boolean = other is MalSymbol && value.equals(other.value)
 
     override fun with_meta(meta: MalType): MalType {
