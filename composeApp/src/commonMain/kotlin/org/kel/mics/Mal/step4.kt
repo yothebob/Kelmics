@@ -2,23 +2,29 @@ package org.kel.mics.Mal
 
 
 
-fun createEnv() : Env {
+fun createEnv2() : Env {
     var totalEnv = Env()
     totalEnv.set(MalSymbol("+"), MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger + y as MalInteger }) }))
     totalEnv.set(MalSymbol("-"), MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger - y as MalInteger }) }))
     totalEnv.set(MalSymbol("*"), MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger * y as MalInteger }) }))
     totalEnv.set(MalSymbol("/"), MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger / y as MalInteger }) }))
-    // totalEnv.set( MalSymbol("prn"), MalFunction({ a: ISeq -> a.seq().reduce({ acc, mt ->  acc = acc.toString() + mt.mal_print().toString()})}))
     return totalEnv
 }
 
-val env = createEnv()
+val env2 = createEnv2()
 
-fun mal_read3(para: String) : MalType {
+fun mal_read4(para: String) : MalType {
     return read_str(para)
 }
 
-fun mal_eval3(para: MalType, env: Env) : MalType {
+fun eval_do(ast: ISeq, env: Env): MalType {
+    for (i in 1..ast.count() - 2) {
+        mal_eval4(ast.nth(i), env)
+    }
+    return mal_eval4(ast.seq().last(), env)
+}
+
+fun mal_eval4(para: MalType, env: Env) : MalType {
     println("21 eval3: ${para}, ${para.mal_print()}, ${para.getVal()}")
     return when {
         para is MalList && para.count() == 0 -> return para
@@ -26,7 +32,8 @@ fun mal_eval3(para: MalType, env: Env) : MalType {
             val first = para.first().getVal()
             println("first: ${first}")
             when (first) {
-                "def!" -> { return env.set(para.nth(1) as MalSymbol, mal_eval3(para.nth(2), env)) }
+                "do" -> return eval_do(para, env)
+                "def!" -> { return env.set(para.nth(1) as MalSymbol, mal_eval4(para.nth(2), env)) }
                 "let*" -> {
                     println("in let 30")
                     val child = Env(env)
@@ -37,15 +44,15 @@ fun mal_eval3(para: MalType, env: Env) : MalType {
                     while (it.hasNext()) {
                         val key = it.next()
                         if (!it.hasNext()) throw MalException("odd number of binding elements in let*")
-                        val value = mal_eval3(it.next(), child)
+                        val value = mal_eval4(it.next(), child)
                         child.set(key as MalSymbol, value)
                     }
-                    return mal_eval3(para.nth(2), child)
+                    return mal_eval4(para.nth(2), child)
                 }
                 else -> {
                     val evaluated = para.elements.fold(MalList(), { a, b ->
                         println("a,b: ${a.mal_print()} ${b.mal_print()}")
-                        a.conj_BANG(mal_eval3(b, env)); a })
+                        a.conj_BANG(mal_eval4(b, env)); a })
                     if (evaluated.first() !is MalFunction) {
                         println("throw error, not a function")
                         return para
@@ -62,13 +69,13 @@ fun mal_eval3(para: MalType, env: Env) : MalType {
     }
 }
 
-fun mal_print3(para: MalType) : String {
+fun mal_print4(para: MalType) : String {
     println(para.mal_print())
     return pr_str(para)
 }
 
 
-fun mal_rep3(input: String) : String {
+fun mal_rep4(input: String) : String {
 
-    return mal_print3(mal_eval3(mal_read3(input), env))
+    return mal_print4(mal_eval4(mal_read4(input), env2))
 }
