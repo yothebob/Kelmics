@@ -28,6 +28,14 @@ interface MalType {
     fun with_meta(meta: MalType): MalType
     fun mal_print(): String = ""
     fun getVal(): String = ""
+    fun truthy(): Boolean {
+        return when (this) {
+            NIL -> false
+            ZERO -> false
+            FALSE -> false
+            else -> true
+        }
+    }
 }
 
 open class MalConstant(val value: String) : MalType {
@@ -107,12 +115,12 @@ interface ILambda : MalType {
     fun apply(seq: ISeq): MalType
 }
 
-open class MalFunction(val lambda: (ISeq) -> MalType) : MalType, ILambda {
+open class MalFunction(val lambda: (ISeq) -> MalType?) : MalType, ILambda {
     override fun mal_print(): String = "TODO: Function"
     var is_macro: Boolean = false
     override var metadata: MalType = NIL
 
-    override fun apply(seq: ISeq): MalType = lambda(seq)
+    override fun apply(seq: ISeq): MalType = lambda(seq)!!
 
     override fun with_meta(meta: MalType): MalType {
         val obj = MalFunction(lambda)
@@ -121,7 +129,7 @@ open class MalFunction(val lambda: (ISeq) -> MalType) : MalType, ILambda {
     }
 }
 
-class MalFnFunction(val ast: MalType, val params: Sequence<MalSymbol>, lambda: (ISeq) -> MalType) : MalFunction(lambda) {
+class MalFnFunction(val ast: MalType, val params: Sequence<MalSymbol>, lambda: (ISeq) -> MalType?) : MalFunction(lambda) {
     override fun with_meta(meta: MalType): MalType {
         val obj = MalFnFunction(ast, params, lambda)
         obj.metadata = meta
@@ -176,6 +184,12 @@ class MalList(elements: MutableList<MalType> = mutableListOf()) : MalSequence(el
             res += malType.mal_print() + " "
         }
         return "<MalList (${res})>"
+    }
+    override fun truthy(): Boolean {
+        return when (this) {
+            this.first() -> true
+            else -> false
+        }
     }
     //    constructor() : this(LinkedList<MalType>())
 //    constructor(s: ISeq) : this(s.seq().toCollection(LinkedList<MalType>()))

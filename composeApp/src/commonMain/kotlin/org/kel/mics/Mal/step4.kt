@@ -4,10 +4,7 @@ package org.kel.mics.Mal
 
 fun createEnv2() : Env {
     var totalEnv = Env()
-    totalEnv.set(MalSymbol("+"), MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger + y as MalInteger }) }))
-    totalEnv.set(MalSymbol("-"), MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger - y as MalInteger }) }))
-    totalEnv.set(MalSymbol("*"), MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger * y as MalInteger }) }))
-    totalEnv.set(MalSymbol("/"), MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger / y as MalInteger }) }))
+    ns.forEach({ it -> totalEnv.set(it.key, it.value) })
     return totalEnv
 }
 
@@ -24,6 +21,29 @@ fun eval_do(ast: ISeq, env: Env): MalType {
     return mal_eval4(ast.seq().last(), env)
 }
 
+private fun eval_fn_STAR(ast: ISeq, env: Env): MalType {
+    val binds = ast.nth(1) as? ISeq ?: throw MalException("fn* requires a binding list as first parameter")
+    val symbols = binds.seq().filterIsInstance<MalSymbol>()
+    val body = ast.nth(2)
+
+    return MalFunction({ s: ISeq ->
+        mal_eval4(body, Env(env, symbols, s.seq()))
+    })
+}
+
+private fun eval_if(ast: ISeq, env: Env): MalType {
+    if (ast.nth(1).truthy()) {
+        return mal_eval4(ast.nth(2), env)
+    } else {
+        if (ast.count() > 3) {
+            return mal_eval4(ast.nth(3), env)
+        }
+        return NIL
+    }
+    return NIL
+}
+
+
 fun mal_eval4(para: MalType, env: Env) : MalType {
     println("21 eval3: ${para}, ${para.mal_print()}, ${para.getVal()}")
     return when {
@@ -32,6 +52,8 @@ fun mal_eval4(para: MalType, env: Env) : MalType {
             val first = para.first().getVal()
             println("first: ${first}")
             when (first) {
+                "fn*" -> return eval_fn_STAR(para, env)
+                "if" -> return eval_if(para, env)
                 "do" -> return eval_do(para, env)
                 "def!" -> { return env.set(para.nth(1) as MalSymbol, mal_eval4(para.nth(2), env)) }
                 "let*" -> {
