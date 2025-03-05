@@ -25,6 +25,11 @@ class MalCoreException(message: String, val value: MalType) : MalException(messa
 
 interface MalType {
     var metadata: MalType
+    var documentation: String?
+        get() = ""
+        set(value: String?) {
+            documentation = value
+        }
     fun with_meta(meta: MalType): MalType
     fun mal_print(): String = ""
     fun getVal(): String = ""
