@@ -16,6 +16,7 @@ import org.kel.mics.Mal.mal_rep
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.kel.mics.Buffers.BufferCore
+import org.kel.mics.Mal.Step5MALREPL
 
 import org.kel.mics.Mal.mal_rep2
 import org.kel.mics.Mal.mal_rep3
@@ -29,9 +30,10 @@ fun App() {
         var init = BufferCore()
         var input = remember { mutableStateOf("") }
         var output = remember { mutableStateOf("") }
+        var malRepl = Step5MALREPL()
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             TextField(value = input.value, onValueChange = { input.value = it})
-            Button(onClick = { output.value = mal_rep4(input.value) }) {
+            Button(onClick = { output.value = malRepl._rep(input.value) }) {
                 Text("Evaluate")
             }
             Text(text=output.value.toString())

@@ -2,7 +2,7 @@ package org.kel.mics.Mal
 
 
 
-fun createEnv() : Env {
+private fun createEnv() : Env {
     var totalEnv = Env()
     totalEnv.set(MalSymbol("+"), MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger + y as MalInteger }) }))
     totalEnv.set(MalSymbol("-"), MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger - y as MalInteger }) }))

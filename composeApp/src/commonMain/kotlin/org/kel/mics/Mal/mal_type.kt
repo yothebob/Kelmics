@@ -134,9 +134,9 @@ open class MalFunction(val lambda: (ISeq) -> MalType?) : MalType, ILambda {
     }
 }
 
-class MalFnFunction(val ast: MalType, val params: Sequence<MalSymbol>, lambda: (ISeq) -> MalType?) : MalFunction(lambda) {
+class MalFnFunction(val ast: MalType, val params: Sequence<MalSymbol>, val env: Env, lambda: (ISeq) -> MalType?) : MalFunction(lambda) {
     override fun with_meta(meta: MalType): MalType {
-        val obj = MalFnFunction(ast, params, lambda)
+        val obj = MalFnFunction(ast, params, env, lambda)
         obj.metadata = meta
         return obj
     }

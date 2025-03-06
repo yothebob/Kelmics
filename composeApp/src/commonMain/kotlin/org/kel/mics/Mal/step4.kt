@@ -2,19 +2,19 @@ package org.kel.mics.Mal
 
 
 
-fun createEnv2() : Env {
+private fun createEnv() : Env {
     var totalEnv = Env()
     ns.forEach({ it -> totalEnv.set(it.key, it.value) })
     return totalEnv
 }
 
-val env2 = createEnv2()
+val env2 = createEnv()
 
 fun mal_read4(para: String) : MalType {
     return read_str(para)
 }
 
-fun eval_do(ast: ISeq, env: Env): MalType {
+private fun eval_do(ast: ISeq, env: Env): MalType {
     for (i in 1..ast.count() - 2) {
         mal_eval4(ast.nth(i), env)
     }
