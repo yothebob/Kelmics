@@ -34,7 +34,7 @@ val ns = hashMapOf<MalSymbol, MalType>(
 
 open class MALREPL() {
 
-    open var env: Env = Env()
+    open var internalenv = Env()
 
     open fun _read(para: String) : MalType {
         return read_str(para)
@@ -48,7 +48,7 @@ open class MALREPL() {
         return pr_str(para)
     }
 
-    open fun _rep(input: String) : String {
-        return _print(_eval(_read(input), env))
+    open fun _rep(input: String, _env: Env = internalenv) : String {
+        return _print(_eval(_read(input), _env))
     }
 }

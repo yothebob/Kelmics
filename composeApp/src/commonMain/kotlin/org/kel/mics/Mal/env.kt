@@ -1,9 +1,8 @@
 package org.kel.mics.Mal
 
-import androidx.compose.runtime.key
 
-class Env(val outer: Env? = null, binds: Sequence<MalSymbol>? = null, exprs: Sequence<MalType>? = null) {
-    val data = HashMap<String, MalType>()
+class Env(val outer: Env?, binds: Sequence<MalSymbol>?, exprs: Sequence<MalType>?) {
+    var data = HashMap<String, MalType>()
 
     init {
         // if binds/exprs passed; iterate and set into env
@@ -16,17 +15,26 @@ class Env(val outer: Env? = null, binds: Sequence<MalSymbol>? = null, exprs: Seq
                     set(b, if (ite.hasNext()) ite.next() else NIL)
                 } else {
                     if (!itb.hasNext()) throw MalException("expected a symbol name for varargs")
-                    // set(itb.next(), MalList(ite.asSequence().toCollection(LinkedList<MalType>())))
-                    set(itb.next(), MalList())
+                    set(itb.next(), MalList(ite.asSequence().toMutableList()))
                     break
                 }
             }
         }
     }
 
+    constructor() : this(null, null, null)
+    constructor(outer: Env?) : this(outer, null, null)
+
     fun set(key: MalSymbol, defval: MalType) : MalType {
-        data.put(key.value, defval)
+        data[key.value] = defval
+        println("30 set: ${showNamespace()}")
         return defval
+    }
+
+    fun showNamespace() : MalType {
+        var acc = ""
+        val stringifiedSpace = data.entries.forEach { it -> acc += "[${it.key}] => ${it.value.mal_print()}\n"}
+        return MalString(acc)
     }
 
     fun get(key: String) : MalType? {

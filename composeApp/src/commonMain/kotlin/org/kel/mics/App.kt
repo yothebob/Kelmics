@@ -21,6 +21,10 @@ import org.kel.mics.Mal.Step5MALREPL
 import org.kel.mics.Mal.mal_rep2
 import org.kel.mics.Mal.mal_rep3
 import org.kel.mics.Mal.mal_rep4
+import org.kel.mics.Mal.step5createEnv
+
+var malRepl = Step5MALREPL()
+
 
 @Composable
 @Preview
@@ -30,10 +34,9 @@ fun App() {
         var init = BufferCore()
         var input = remember { mutableStateOf("") }
         var output = remember { mutableStateOf("") }
-        var malRepl = Step5MALREPL()
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             TextField(value = input.value, onValueChange = { input.value = it})
-            Button(onClick = { output.value = malRepl._rep(input.value) }) {
+            Button(onClick = { output.value = malRepl._rep(input.value)}) {
                 Text("Evaluate")
             }
             Text(text=output.value.toString())
