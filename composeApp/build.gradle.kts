@@ -54,7 +54,8 @@ kotlin {
     
     sourceSets {
         val desktopMain by getting
-        
+        val okioVersion = "3.10.2"
+
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
@@ -69,6 +70,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.runtime.compose)
             implementation(projects.shared)
+            implementation("com.squareup.okio:okio:$okioVersion")
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)

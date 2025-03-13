@@ -1,5 +1,11 @@
 package org.kel.mics.Mal
 
+import okio.FileSystem
+import okio.Path.Companion.toPath
+import org.kel.mics.IO.readFileToStr
+
+val FF = FileSystem
+
 val ns = hashMapOf<MalSymbol, MalType>(
     MalSymbol("+") to MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger + y as MalInteger }) }),
     MalSymbol("-")to MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger - y as MalInteger }) }),
@@ -27,7 +33,11 @@ val ns = hashMapOf<MalSymbol, MalType>(
     MalSymbol(">") to MalFunction({ a: ISeq -> if (a.first() is MalInteger && a.nth(1) is MalInteger) {  MalConstant(((a.first() as MalInteger).value > (a.nth(1) as MalInteger).value).toString()) } else { MalException("Not a number")} }),
     MalSymbol("<") to MalFunction({ a: ISeq -> if (a.first() is MalInteger && a.nth(1) is MalInteger) {  MalConstant(((a.first() as MalInteger).value < (a.nth(1) as MalInteger).value).toString()) } else { MalException("Not a number")} }),
 
-
+    MalSymbol("read-string") to MalFunction({ a: ISeq -> if (a.first() is MalString) {  read_str(a.first().getVal()) } else { MalException("read-string only takes string arguments, argument was ${a.first().mal_print()}")} }),
+    MalSymbol("slurp") to MalFunction({ a: ISeq ->
+      val name = a.first() as? MalString ?: throw MalException("slurp requires a filename parameter")
+      MalString(readFileToStr(name.value))
+    }),
 
 )
 
