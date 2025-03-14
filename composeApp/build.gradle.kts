@@ -29,7 +29,13 @@ kotlin {
             isStatic = true
         }
     }
-    
+
+    repositories {
+        mavenCentral()
+        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+        google()
+    }
+
     jvm("desktop")
     
     @OptIn(ExperimentalWasmDsl::class)
@@ -107,6 +113,7 @@ android {
 }
 
 dependencies {
+    implementation(compose.desktop.currentOs)
     debugImplementation(compose.uiTooling)
 }
 

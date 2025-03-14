@@ -19,7 +19,7 @@ class Step5MALREPL : MALREPL() {
     init {
         internalenv = step5createEnv()
 	//        _rep("(def! not (fn* (a) (if a false true)))", internalenv)
-        // _rep("(def! sum2 (fn* (n acc) (if (= n 0) acc (sum2 (- n 1) (+ n acc)))))", internalenv)
+        _rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"nil)\")))))", internalenv)
     }
 
     override fun _eval(_para: MalType, _env: Env) : MalType {

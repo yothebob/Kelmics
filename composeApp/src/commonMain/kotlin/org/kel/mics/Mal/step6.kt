@@ -8,17 +8,16 @@ fun step6createEnv() : Env {
         println(totalEnv.showNamespace())
         totalEnv.showNamespace()
     }))
+
     return totalEnv
 }
 
 
-class Step6MALREPL : MALREPL() {
+class Step6MALREPL(override var internalenv: Env = Env()) : MALREPL() {
 
-    override var internalenv = Env()
+//    override var internalenv = if (overrideEnv != null) { overrideEnv } else { Env() }
 
-    init {
-        internalenv = step6createEnv()
-    }
+
 
     override fun _eval(_para: MalType, _env: Env) : MalType {
 
@@ -58,17 +57,18 @@ class Step6MALREPL : MALREPL() {
                             val binds = ast.nth(1) as? ISeq ?: return MalException("fn* requires a binding list as first parameter")
                             val symbols = binds.seq().filterIsInstance<MalSymbol>()
                             val body = ast.nth(2)
-                            return MalFnFunction(body, symbols, cenv, { s: ISeq -> this._eval(body, Env(cenv, symbols, s.seq())) })
+                            return MalFnFunction(body, symbols, cenv, { s: ISeq ->
+                                _eval(body, Env(cenv, symbols, s.seq())) })
 
                         }
                         "do" -> {
                             for (i in 1..ast.count() - 2) {
-                                this._eval(ast.nth(i), cenv)
+                                _eval(ast.nth(i), cenv)
                             }
                             ast = ast.seq().last()
                         }
                         "if" -> {
-                            val check = this._eval(ast.nth(1), cenv)
+                            val check = _eval(ast.nth(1), cenv)
 
                             if (check !== NIL && check !== FALSE) {
                                 ast = ast.nth(2)
@@ -77,7 +77,7 @@ class Step6MALREPL : MALREPL() {
                             } else return NIL
                         }
                         else -> {
-                            val evaluated = ast.elements.fold(MalList(), { a, b -> a.conj_BANG(this._eval(b, cenv)); a })
+                            val evaluated = ast.elements.fold(MalList(), { a, b -> a.conj_BANG(_eval(b, cenv)); a })
                             val firstEval = evaluated.first()
 
                             when (firstEval) {
@@ -86,12 +86,12 @@ class Step6MALREPL : MALREPL() {
                                     cenv = Env(firstEval.env, firstEval.params, evaluated.rest().seq())
                                 }
                                 is MalFunction -> return firstEval.apply(evaluated.rest())
-                                else -> return MalException("cannot execute non-function")
+                                else -> return MalException("cannot execute non-function ${firstEval.mal_print()}")
                             }
                         }
                     }
                 }
-                is MalSymbol -> return cenv.get(ast.value) ?: return MalException("'${ast.value}' not found")
+                is MalSymbol -> return cenv.get(ast.value) ?: return MalException("'${ast.value}' not found") // why is this not finding things
                 is MalVector -> return ast.elements.fold(MalVector(), { a, b -> a.conj_BANG(_eval(b, cenv)); a })
                 is MalHashMap -> return ast.elements.entries.fold(MalHashMap(), { a, b -> a.assoc_BANG(b.key, _eval(b.value, cenv)); a })
                 else -> return ast
@@ -109,5 +109,20 @@ class Step6MALREPL : MALREPL() {
 
     override fun _rep(input: String, _env: Env): String {
         return super._rep(input, _env)
+    }
+    init {
+        println("Create Env")
+        internalenv = step6createEnv()
+        println("adding eval")
+        internalenv.set(MalSymbol("eval"), MalFunction({ a: ISeq ->
+            _eval(a.first(), internalenv)
+        }))
+        println("adding not")
+        // internalenv.set(MalSymbol("*ARGV*"), MalList(args.drop(1).map({ it -> MalString(it) }).toCollection(LinkedList<MalType>())))
+        // _rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))", internalenv)
+        _rep("(def! not (fn* (a) (if a false true)))", internalenv)
+        _rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))", internalenv)
+        println(_rep("(load-file \"/home/bbrodrick/inca.kel\")", internalenv))
+        println("FIN\n\n")
     }
 }

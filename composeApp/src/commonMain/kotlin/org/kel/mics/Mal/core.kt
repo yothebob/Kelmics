@@ -4,8 +4,6 @@ import okio.FileSystem
 import okio.Path.Companion.toPath
 import org.kel.mics.IO.readFileToStr
 
-val FF = FileSystem
-
 val ns = hashMapOf<MalSymbol, MalType>(
     MalSymbol("+") to MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger + y as MalInteger }) }),
     MalSymbol("-")to MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger - y as MalInteger }) }),
@@ -18,6 +16,10 @@ val ns = hashMapOf<MalSymbol, MalType>(
     MalSymbol("str") to MalFunction({ a: ISeq ->
         println(a.seq().map { it.mal_print() }.joinToString(" "))
         MalString(a.seq().map { it.mal_print() }.joinToString(" "))}),
+    MalSymbol("pr-str") to MalFunction({ a: ISeq ->
+					println(a.seq().map { it.mal_print() }.joinToString(" "))
+					MalString(a.seq().map { it.mal_print() }.joinToString(" "))}),
+    
 //    pr-str, prn, println
 
 
@@ -42,9 +44,9 @@ val ns = hashMapOf<MalSymbol, MalType>(
 )
 
 
-open class MALREPL() {
+open class MALREPL(open var internalenv: Env = Env()) {
 
-    open var internalenv = Env()
+ //   open var internalenv = Env()
 
     open fun _read(para: String) : MalType {
         return read_str(para)
