@@ -1,11 +1,7 @@
 package org.kel.mics
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.rememberBasicTooltipState
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
@@ -18,24 +14,48 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
-import org.kel.mics.Mal.mal_rep
-import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.kel.mics.Buffers.BufferCore
-import org.kel.mics.Mal.Step5MALREPL
-import org.kel.mics.Mal.Step6MALREPL
+import org.kel.mics.Mal.Env
+import org.kel.mics.Mal.ISeq
+import org.kel.mics.Mal.MalFunction
+import org.kel.mics.Mal.MalList
+import org.kel.mics.Mal.MalString
+import org.kel.mics.Mal.MalSymbol
+import org.kel.mics.Mal.eval
+import org.kel.mics.Mal.ns
+import org.kel.mics.Mal.rep
 
-import org.kel.mics.Mal.mal_rep2
-import org.kel.mics.Mal.mal_rep3
-import org.kel.mics.Mal.mal_rep4
-import org.kel.mics.Mal.step5createEnv
-import org.kel.mics.Mal.step6createEnv
-
-var COREENV = step6createEnv()
-var malRepl = Step6MALREPL(
-    COREENV
-)
 var history = mutableListOf<String>()
+
+fun mmm () : Env {
+    val repl_env = Env()
+    ns.forEach({ it -> repl_env.set(it.key, it.value) })
+
+    // repl_env.set(MalSymbol("*ARGV*"), MalList(args.drop(1).map({ it -> MalString(it) }).toMutableList()))
+    repl_env.set(MalSymbol("eval"), MalFunction({ a: ISeq -> eval(a.first(), repl_env) }))
+    rep("(def! not (fn* (a) (if a false true)))", repl_env)
+    rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))", repl_env)
+    return repl_env
+
+//if (args.any()) {
+//    rep("(load-file \"${args[0]}\")", repl_env)
+//    return
+//}
+}
+val repl_env = mmm()
+//val repl_env = Env()
+//ns.forEach({ it -> repl_env.set(it.key, it.value) })
+//
+//repl_env.set(MalSymbol("*ARGV*"), MalList(args.drop(1).map({ it -> MalString(it) }).toMutableList()))
+//repl_env.set(MalSymbol("eval"), MalFunction({ a: ISeq -> eval(a.first(), repl_env) }))
+//rep("(def! not (fn* (a) (if a false true)))", repl_env)
+//rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))", repl_env)
+//
+//if (args.any()) {
+//    rep("(load-file \"${args[0]}\")", repl_env)
+//    return
+//}
 
 @Composable
 @Preview
@@ -74,7 +94,7 @@ fun App() {
             })
             Button(onClick = {
                 history.add(output.value)
-                output.value = malRepl._rep(input.value)}) {
+                output.value = rep(input.value, repl_env)}) {
                 Text("Evaluate")
             }
             Text(text=output.value.toString())
