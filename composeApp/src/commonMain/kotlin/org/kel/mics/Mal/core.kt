@@ -40,6 +40,37 @@ val ns = hashMapOf<MalSymbol, MalType>(
       val name = a.first() as? MalString ?: throw MalException("slurp requires a filename parameter")
       MalString(readFileToStr(name.value))
     }),
+    MalSymbol("atom") to MalFunction({ a: ISeq ->
+        MalAtom(a.first()) // maybe throw some errors, like on constants?
+    }),
+    MalSymbol("atom?") to MalFunction({ a: ISeq ->
+        val isAtom = a.first() is MalAtom
+        MalConstant(isAtom.toString())
+    }),
+    MalSymbol("deref") to MalFunction({ a: ISeq ->
+        (a.first() as MalAtom).value
+    }),
+
+
+
+    // Take a type, update its documentation and return it?
+    MalSymbol("set-doc") to MalFunction({ a: ISeq -> a.first().documentation = a.nth(1).toString()
+        a.first()
+    }),
+    MalSymbol("doc") to MalFunction({ a: ISeq -> read_str(a.first().documentation) }),
+
+
+    MalSymbol("cons") to MalFunction({ a: ISeq -> if (a.nth(1) is MalList) {
+        val newlist = (a.nth(1) as MalList).seq().toMutableList()
+        newlist.add(0, a.first())
+        MalList(newlist)
+    } else { MalException("Second argument ${a.nth(1).mal_print()} is not a list") } }),
+    MalSymbol("concat") to MalFunction({ a: ISeq ->
+        MalList(a.seq().flatMap { (it as ISeq).seq() }.toMutableList())
+    }),
+    MalSymbol("vec") to MalFunction({ a: ISeq ->
+        if (a.first() is ISeq) {MalVector(a)} else {MalException("MalVector expects seq, got ${a.first()}")}
+    }),
 
 )
 

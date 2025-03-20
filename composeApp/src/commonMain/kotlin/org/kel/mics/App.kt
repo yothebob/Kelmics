@@ -44,18 +44,6 @@ fun mmm () : Env {
 //}
 }
 val repl_env = mmm()
-//val repl_env = Env()
-//ns.forEach({ it -> repl_env.set(it.key, it.value) })
-//
-//repl_env.set(MalSymbol("*ARGV*"), MalList(args.drop(1).map({ it -> MalString(it) }).toMutableList()))
-//repl_env.set(MalSymbol("eval"), MalFunction({ a: ISeq -> eval(a.first(), repl_env) }))
-//rep("(def! not (fn* (a) (if a false true)))", repl_env)
-//rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))", repl_env)
-//
-//if (args.any()) {
-//    rep("(load-file \"${args[0]}\")", repl_env)
-//    return
-//}
 
 @Composable
 @Preview
