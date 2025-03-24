@@ -50,7 +50,26 @@ val ns = hashMapOf<MalSymbol, MalType>(
     MalSymbol("deref") to MalFunction({ a: ISeq ->
         (a.first() as MalAtom).value
     }),
+    MalSymbol("reset!") to MalFunction({ a: ISeq ->
+					   val atom = a.first() as MalAtom
+					   val value = a.nth(1)
+					   atom.value = value
+					   value
+				       }),
+    MalSymbol("swap!") to MalFunction({ a: ISeq ->
+					  val atom = a.nth(0) as MalAtom
+					  val function = a.nth(1) as MalFunction
+					  
+					  val params = MalList()
+					  params.conj_BANG(atom.value)
+					  a.seq().drop(2).forEach({ it -> params.conj_BANG(it) })
+					  
+					  val value = function.apply(params)
+					  atom.value = value
+					  value
+				       }),
 
+    
 
 
     // Take a type, update its documentation and return it?
