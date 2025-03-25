@@ -92,16 +92,19 @@ fun eval(_ast: MalType, _env: Env): MalType {
                         } else return NIL
                     }
                     else -> {
-                        val evaluated = ast.elements.fold(MalList(), { a, b -> a.conj_BANG(eval(b, env)); a })
-                        val firstEval = evaluated.first()
-
-                        when (firstEval) {
-                            is MalFnFunction -> {
-                                ast = firstEval.ast
-                                env = Env(firstEval.env, firstEval.params, evaluated.rest().seq())
+                        val firstEval = eval(ast.first(), env)
+                        if (firstEval is MalFunction && firstEval.is_macro) {
+                            ast = firstEval.apply(ast.rest())
+                        } else {
+                            val args = ast.elements.drop(1).fold(MalList(), { a, b -> a.conj_BANG(eval(b, env)); a })
+                            when (firstEval) {
+                                is MalFnFunction -> {
+                                    ast = firstEval.ast
+                                    env = Env(firstEval.env, firstEval.params, args.seq())
+                                }
+                                is MalFunction -> return firstEval.apply(args)
+                                else -> throw MalException("cannot execute non-function")
                             }
-                            is MalFunction -> return firstEval.apply(evaluated.rest())
-                            else -> return MalException("else firstEval, cannot execute non-function ${firstEval}, ${firstEval.mal_print()}")
                         }
                     }
                 }

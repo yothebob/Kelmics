@@ -90,6 +90,23 @@ val ns = hashMapOf<MalSymbol, MalType>(
     MalSymbol("vec") to MalFunction({ a: ISeq ->
         if (a.first() is ISeq) {MalVector(a)} else {MalException("MalVector expects seq, got ${a.first()}")}
     }),
+    MalSymbol("nth") to MalFunction({ a: ISeq -> // TODO: add vect supp
+        val idx = a.first() as? MalInteger ?: throw MalException("Requires a Int Param")
+        val lst = a.nth(1) as? ISeq ?: throw MalException("Requires a List Param")
+        if (lst.count() > idx.value) lst.nth(idx.value.toInt()) else MalException("${idx.value} Out of list ${lst.mal_print()} range.")
+    }),
+    MalSymbol("first") to MalFunction({ a: ISeq -> // TODO: add vect supp
+        val lst = a.first() as? ISeq ?: throw MalException("Requires a List Param")
+        if (lst.count() > 0) lst.first() else NIL
+    }),
+    MalSymbol("rest") to MalFunction({ a: ISeq -> // TODO: add vect supp
+        val lst = a.first() as? ISeq ?: throw MalException("Requires a List Param")
+        MalList(lst.rest().seq().toMutableList())
+    }),
+    MalSymbol("throw") to MalFunction({ a: ISeq ->
+        val throwable = a.nth(0)
+        throw MalCoreException(pr_str(throwable), throwable)
+    }),
 
 )
 
