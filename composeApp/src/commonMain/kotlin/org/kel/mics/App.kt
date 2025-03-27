@@ -1,7 +1,11 @@
 package org.kel.mics
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
@@ -14,7 +18,11 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import org.kel.mics.Buffers.Buffer
 import org.kel.mics.Buffers.BufferCore
 import org.kel.mics.Mal.Env
 import org.kel.mics.Mal.ISeq
@@ -27,6 +35,7 @@ import org.kel.mics.Mal.ns
 import org.kel.mics.Mal.rep
 
 var history = mutableListOf<String>()
+var messages = mutableStateOf<String>("")
 
 fun mmm () : Env {
     val repl_env = Env()
@@ -46,47 +55,53 @@ fun mmm () : Env {
 }
 val repl_env = mmm()
 
+
+@Composable
+fun MalBuffer(
+    modifier: Modifier = Modifier,
+    readOnly: Boolean = true,
+    contents: String = "",
+    name: String = ""
+    ) {
+    if (readOnly) {
+        Text(text = contents)
+    }
+    Text(text = "Buffer: ${name}")
+}
+
+@Composable
+fun MiniBuffer(modifier: Modifier = Modifier) {
+    var input = remember { mutableStateOf("") }
+    var output = remember { mutableStateOf("") }
+    Row(modifier = modifier) {
+        TextField(value = input.value,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            onValueChange = { input.value = it}
+        )
+        Button(onClick = {
+            output.value = rep(input.value, repl_env)
+            println(output.value)
+            history.add(output.value)
+            messages.value += "${output.value}\n"
+        }) {
+            Text("Evaluate")
+        }
+    }
+}
+
+
 @Composable
 @Preview
 fun App() {
     MaterialTheme {
-        var showContent by remember { mutableStateOf(false) }
-        var init = BufferCore()
-        var input = remember { mutableStateOf("") }
-        var historyItem = remember { mutableStateOf(0) }
-        var output = remember { mutableStateOf("") }
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            TextField(value = input.value, onValueChange = { input.value = it}, modifier = Modifier.onKeyEvent {
-                if (it.type == KeyEventType.KeyDown) {
-                    when (it.key) {
-                        Key.DirectionUp -> {
-                            println("up pressed")
-                            if (history.size > historyItem.value) {
-                                input.value = history.get(history.size - historyItem.value)
-                                historyItem.value ++
-                            }
-                            true
-                        }
-                        Key.DirectionDown -> {
-                            println("down pressed")
-                            if (history.size < historyItem.value) {
-                                input.value = history.get(history.size + historyItem.value)
-                                historyItem.value --
-                            }
-                            true
-                        }
-                        else -> false
-                    }
-                } else {
-                    false
-                }
-            })
-            Button(onClick = {
-                history.add(output.value)
-                output.value = rep(input.value, repl_env)}) {
-                Text("Evaluate")
-            }
-            Text(text=output.value.toString())
+        Column {
+            MiniBuffer()
+            MalBuffer(
+                modifier = Modifier,
+                readOnly = true,
+                contents = messages.value,
+                name = "*Messages*"
+                )
         }
     }
 }

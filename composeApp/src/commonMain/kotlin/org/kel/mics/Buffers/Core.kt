@@ -2,7 +2,6 @@ package org.kel.mics.Buffers
 
 enum class WindowTypeEnum {
     TEXT,
-    MINI,
     PROMPT
 }
 
@@ -18,6 +17,7 @@ class BufferCore() {
 }
 
 class Buffer() {
+    var name = ""
     var windowType = WindowTypeEnum.TEXT
     var bufferContents = "Hello world!"
 
