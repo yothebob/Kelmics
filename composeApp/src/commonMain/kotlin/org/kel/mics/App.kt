@@ -1,34 +1,37 @@
 package org.kel.mics
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
-import org.kel.mics.Buffers.Buffer
-import org.kel.mics.Buffers.BufferCore
+import org.kel.mics.IO.createClientSocket
 import org.kel.mics.Mal.Env
 import org.kel.mics.Mal.ISeq
 import org.kel.mics.Mal.MalFunction
-import org.kel.mics.Mal.MalList
-import org.kel.mics.Mal.MalString
 import org.kel.mics.Mal.MalSymbol
 import org.kel.mics.Mal.eval
 import org.kel.mics.Mal.ns
@@ -43,6 +46,8 @@ fun mmm () : Env {
 
     // repl_env.set(MalSymbol("*ARGV*"), MalList(args.drop(1).map({ it -> MalString(it) }).toMutableList()))
     repl_env.set(MalSymbol("eval"), MalFunction({ a: ISeq -> eval(a.first(), repl_env) }))
+    repl_env.set(MalSymbol("ns"), MalFunction({ a: ISeq -> repl_env.showNamespace() }))
+
     rep("(def! not (fn* (a) (if a false true)))", repl_env)
     rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))", repl_env)
     rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))", repl_env)
@@ -56,6 +61,8 @@ fun mmm () : Env {
 val repl_env = mmm()
 
 
+
+
 @Composable
 fun MalBuffer(
     modifier: Modifier = Modifier,
@@ -63,16 +70,34 @@ fun MalBuffer(
     contents: String = "",
     name: String = ""
     ) {
-    if (readOnly) {
-        Text(text = contents)
+
+    Column (modifier=Modifier.fillMaxWidth()) {
+        Box(modifier = Modifier.fillMaxWidth().border(2.dp, color = Color.Blue)) { // TODO: replace this with a modebar?
+            Text(text = "Buffer: ${name}\n", fontStyle = FontStyle.Italic, modifier = Modifier)
+        }
+        Box {
+            if (readOnly) {
+                Text(text = contents)
+            } else {
+                // TODO: Textarea
+                Text(text = "Buffer: ${name}\n", fontStyle = FontStyle.Italic, modifier = Modifier.padding(10.dp))
+            }
+        }
     }
-    Text(text = "Buffer: ${name}")
+}
+
+suspend fun TestShellBuffer() {
+    createClientSocket("192.168.157.123", 9002)
 }
 
 @Composable
 fun MiniBuffer(modifier: Modifier = Modifier) {
     var input = remember { mutableStateOf("") }
     var output = remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    scope.launch {
+        TestShellBuffer()
+    }
     Row(modifier = modifier) {
         TextField(value = input.value,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -93,15 +118,18 @@ fun MiniBuffer(modifier: Modifier = Modifier) {
 @Composable
 @Preview
 fun App() {
+    val scrollState = rememberScrollState()
     MaterialTheme {
         Column {
             MiniBuffer()
-            MalBuffer(
-                modifier = Modifier,
-                readOnly = true,
-                contents = messages.value,
-                name = "*Messages*"
+            Row(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                MalBuffer(
+                    modifier = Modifier.padding(10.dp),//.fillMaxSize().verticalScroll(rememberScrollState()),
+                    readOnly = true,
+                    contents = messages.value,
+                    name = "*Messages*"
                 )
+            }
         }
     }
 }

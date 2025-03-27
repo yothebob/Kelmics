@@ -27,8 +27,8 @@ class Env(val outer: Env?, binds: Sequence<MalSymbol>?, exprs: Sequence<MalType>
 
     fun set(key: MalSymbol, defval: MalType) : MalType {
         data[key.value] = defval
-        println("adding ${key.mal_print()} with value ${defval.mal_print()}")
-        println("30 set: ${showNamespace().mal_print()}")
+//        println("adding ${key.mal_print()} with value ${defval.mal_print()}")
+//        println("30 set: ${showNamespace().mal_print()}")
         return defval
     }
 

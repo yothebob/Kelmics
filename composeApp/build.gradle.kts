@@ -69,6 +69,7 @@ kotlin {
             implementation(libs.kotlinx.coroutines.android)
         }
         commonMain.dependencies {
+            implementation("io.ktor:ktor-network:2.3.8")
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material)

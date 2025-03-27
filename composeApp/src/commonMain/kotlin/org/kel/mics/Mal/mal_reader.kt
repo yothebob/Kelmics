@@ -49,9 +49,9 @@ fun read_list(r : Reader) : MalType {
 }
 
 private fun read_sequence(reader: Reader, sequence: IMutableSeq, end: String): MalType {
-    println("51: ${sequence.mal_print()} ${sequence}")
+//    println("51: ${sequence.mal_print()} ${sequence}")
     reader.next()
-    println("form after next: ${reader.peek()}")
+//    println("form after next: ${reader.peek()}")
 
     do {
         val form = when (reader.peek()) {
