@@ -1,5 +1,6 @@
 package org.kel.mics.IO
 
+import androidx.compose.runtime.mutableStateOf
 import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
@@ -19,52 +20,24 @@ import kotlin.system.exitProcess
 // this only TECHNICALLY WORKS so far
 
 
-actual suspend fun createClientSocket(address: String, port: Int) {
+actual suspend fun createClientSocket(address: String, port: Int, message: String): String {
+    var res = mutableStateOf("")
     withContext(Dispatchers.IO) {
-        try {
+//        try {
             val selectorManager = SelectorManager(Dispatchers.IO)
             val socket = aSocket(selectorManager).tcp().connect(address, port)
-
-
             val receiveChannel = socket.openReadChannel()
             val sendChannel = socket.openWriteChannel( autoFlush = true)
-//        val thing = SocketInterface(sendChannel=sendChannel, socket=socket)
+            if (!message.isNullOrEmpty()) {
+                sendChannel.writeStringUtf8("$message\n")
+                res.value = receiveChannel.readUTF8Line().toString()
+                socket.close()
+                println("DisCOnnecting...")
+            }
 
-//        launch(Dispatchers.IO) {
-//            while (true) {
-//                val greeting = receiveChannel.readUTF8Line()
-//                if (greeting != null) {
-//                    println(greeting)
-//                } else {
-//                    println("Server closed a connection")
-//                    socket.close()
-//                    selectorManager.close()
-//                    exitProcess(0)
-//                }
-//            }
+//        } catch (e: Exception) {
+//            println("CONNECTION FAILED")
 //        }
-        } catch (e: Exception) {
-            println("CONNECTION FAILED")
-            // Code for handling the exception
-        }
-
-
-
     }
-}
-
-actual suspend fun sendSocketRequest(message: String): String {
-    return ""
-//    withContext(Dispatchers.IO) {
-//        sendChannel.writeStringUtf8("$message\n")
-//        val greeting = receiveChannel.readUTF8Line()
-//        if (greeting != null) {
-//            println(greeting)
-//        } else {
-//            println("Server closed a connection")
-//            socket.close()
-//            selectorManager.close()
-//            exitProcess(0)
-//        }
-//    }
+    return res.value?: ""
 }

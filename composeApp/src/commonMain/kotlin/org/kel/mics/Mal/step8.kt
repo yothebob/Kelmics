@@ -1,5 +1,13 @@
 package org.kel.mics.Mal
 
+import androidx.compose.runtime.mutableStateOf
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
 fun read(input: String?): MalType = read_str(input)
 
 fun quisiquote_fun(ast: MalType) : MalType {
@@ -93,6 +101,7 @@ fun eval(_ast: MalType, _env: Env): MalType {
                     }
                     else -> {
                         val firstEval = eval(ast.first(), env)
+                        println(firstEval)
                         if (firstEval is MalFunction && firstEval.is_macro) {
                             ast = firstEval.apply(ast.rest())
                         } else {
@@ -103,6 +112,17 @@ fun eval(_ast: MalType, _env: Env): MalType {
                                     env = Env(firstEval.env, firstEval.params, args.seq())
                                 }
                                 is MalFunction -> return firstEval.apply(args)
+                                is MalSuspendFunction -> {
+                                    val x = mutableStateOf<MalType>(NIL)
+
+                                    CoroutineScope(Dispatchers.Default).launch {
+                                        // TODO: not working
+                                        x.value = async { firstEval.asyncApply(args) }.await()
+
+                                    }
+                                    println("119 ${x.value.mal_print()}")
+                                    return x.value
+                                }
                                 else -> throw MalException("cannot execute non-function")
                             }
                         }

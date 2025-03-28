@@ -87,7 +87,7 @@ fun MalBuffer(
 }
 
 suspend fun TestShellBuffer() {
-    createClientSocket("192.168.157.123", 9002)
+    createClientSocket("192.168.157.123", 9002, "whoami")
 }
 
 @Composable

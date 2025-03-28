@@ -1,9 +1,15 @@
 package org.kel.mics.Mal
 
-import okio.FileSystem
-import okio.Path.Companion.toPath
+import androidx.compose.runtime.mutableStateOf
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import org.kel.mics.IO.createClientSocket
 import org.kel.mics.IO.readFileToStr
 
+@OptIn(ExperimentalCoroutinesApi::class)
 val ns = hashMapOf<MalSymbol, MalType>(
     MalSymbol("+") to MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger + y as MalInteger }) }),
     MalSymbol("-")to MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger - y as MalInteger }) }),
@@ -69,8 +75,22 @@ val ns = hashMapOf<MalSymbol, MalType>(
 					  value
 				       }),
 
-    
 
+    MalSymbol("remote-shell-command") to MalSuspendFunction({ a: ISeq ->
+        val cmd = a.first() as? MalString ?: throw MalException("Requires a Int Param")
+        val res = mutableStateOf("")
+        val scope = CoroutineScope(Dispatchers.Default)
+        scope.launch {
+            val result = createClientSocket("192.168.157.123", 9002, cmd.value)
+            res.value = result
+            println("res ${res.value}") // Should now print correctly
+        }
+//        scope.launch {
+//            return@launch MalString(async { createClientSocket("192.168.157.123", 9002, cmd.value) }.await())
+//        }
+//        println("res ${res.value}")
+        MalString(res.value.toString())
+    }),
 
     // Take a type, update its documentation and return it?
     MalSymbol("set-doc") to MalFunction({ a: ISeq -> a.first().documentation = a.nth(1).toString()
