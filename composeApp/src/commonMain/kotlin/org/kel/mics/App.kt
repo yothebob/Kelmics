@@ -86,23 +86,25 @@ fun MalBuffer(
     }
 }
 
-suspend fun TestShellBuffer() {
-    createClientSocket("192.168.157.123", 9002, "whoami")
-}
+// suspend fun TestShellBuffer() {
+//     createClientSocket("192.168.157.123", 9002, "whoami")
+// }
 
 @Composable
 fun MiniBuffer(modifier: Modifier = Modifier) {
     var input = remember { mutableStateOf("") }
     var output = remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
-    scope.launch {
-        TestShellBuffer()
-    }
+    // scope.launch {
+    //     TestShellBuffer()
+    // }
     Row(modifier = modifier) {
         TextField(value = input.value,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             onValueChange = { input.value = it}
         )
+    }
+    Row {
         Button(onClick = {
             output.value = rep(input.value, repl_env)
             println(output.value)

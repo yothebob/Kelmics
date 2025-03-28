@@ -1,12 +1,17 @@
 package org.kel.mics.Mal
 
 import androidx.compose.runtime.mutableStateOf
+import arrow.core.Either
+import arrow.core.getOrElse
+import arrow.core.left
+import arrow.core.right
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import org.kel.mics.IO.createClientSocket
+import org.kel.mics.IO.dispatchSocketCall
 import org.kel.mics.IO.readFileToStr
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -76,20 +81,29 @@ val ns = hashMapOf<MalSymbol, MalType>(
 				       }),
 
 
-    MalSymbol("remote-shell-command") to MalSuspendFunction({ a: ISeq ->
-        val cmd = a.first() as? MalString ?: throw MalException("Requires a Int Param")
-        val res = mutableStateOf("")
+    MalSymbol("remote-shell-command") to MalSuspendFunction({ a: ISeq -> // NON ASYNC!
+        val cmd = a.first() as? MalString ?: throw MalException("Requires a String Param")
+        val res = mutableStateOf<MalType>(NIL)
         val scope = CoroutineScope(Dispatchers.Default)
         scope.launch {
-            val result = createClientSocket("192.168.157.123", 9002, cmd.value)
-            res.value = result
-            println("res ${res.value}") // Should now print correctly
+            val result = dispatchSocketCall("192.168.157.123", 9002, cmd.value)
+            when (result) {
+                is Either.Left -> {
+                    println(result.value)
+//                    res.value = result.left()
+                }
+                is Either.Right -> {
+                    println(result.value)
+//                res.value = result.right()
+                }
+            }
         }
+        res.value
 //        scope.launch {
 //            return@launch MalString(async { createClientSocket("192.168.157.123", 9002, cmd.value) }.await())
 //        }
 //        println("res ${res.value}")
-        MalString(res.value.toString())
+        // MalString(res.value.toString())
     }),
 
     // Take a type, update its documentation and return it?

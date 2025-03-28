@@ -81,11 +81,18 @@ kotlin {
             implementation(projects.shared)
             implementation(libs.ktor.client.core)
             implementation(libs.kotlinx.coroutines.core)
+            implementation(platform("io.arrow-kt:arrow-stack:2.0.1"))
+            // no versions on libraries
+            implementation("io.arrow-kt:arrow-core")
+            implementation("io.arrow-kt:arrow-fx-coroutines")
             implementation("com.squareup.okio:okio:$okioVersion")
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutines.swing)
+        }
+        wasmWasiMain.dependencies {
+            implementation("io.ktor:ktor-client-websockets-wasm-js:3.1.2")
         }
     }
 }

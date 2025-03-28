@@ -112,17 +112,17 @@ fun eval(_ast: MalType, _env: Env): MalType {
                                     env = Env(firstEval.env, firstEval.params, args.seq())
                                 }
                                 is MalFunction -> return firstEval.apply(args)
-                                is MalSuspendFunction -> {
-                                    val x = mutableStateOf<MalType>(NIL)
-
-                                    CoroutineScope(Dispatchers.Default).launch {
-                                        // TODO: not working
-                                        x.value = async { firstEval.asyncApply(args) }.await()
-
-                                    }
-                                    println("119 ${x.value.mal_print()}")
-                                    return x.value
-                                }
+//                                is MalSuspendFunction -> {
+//                                    val x = mutableStateOf<MalType>(NIL)
+//
+//                                    CoroutineScope(Dispatchers.Default).launch {
+//                                        // TODO: not working
+//                                        x.value = async { firstEval.asyncApply(args) }.await()
+//
+//                                    }
+//                                    println("119 ${x.value.mal_print()}")
+//                                    return x.value
+//                                }
                                 else -> throw MalException("cannot execute non-function")
                             }
                         }

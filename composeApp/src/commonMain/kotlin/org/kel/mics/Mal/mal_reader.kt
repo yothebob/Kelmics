@@ -39,9 +39,22 @@ fun read_form(r : Reader) : MalType {
     return when (nxt) {
         null -> throw MalContinue()
         "("  -> read_list(r)
+        ")"  -> throw MalReaderException("expected form, got ')'")
+        "["  -> read_vector(r)
+        "]"  -> throw MalReaderException("expected form, got ']'")
+        "{"  -> read_hashmap(r)
+        "}"  -> throw MalReaderException("expected form, got '}'")
+        "'"  -> read_shorthand(r, "quote")
+        "`"  -> read_shorthand(r, "quasiquote")
+        "~"  -> read_shorthand(r, "unquote")
+        "~@" -> read_shorthand(r, "splice-unquote")
+        "^"  -> read_with_meta(r)
+        "@"  -> read_shorthand(r, "deref")
         else -> read_atom(r)
     }
 }
+
+fun read_vector(reader: Reader): MalType = read_sequence(reader, MalVector(), "]")
 
 fun read_list(r : Reader) : MalType {
     println("47: ${r}")
@@ -97,3 +110,58 @@ fun read_atom(r: Reader) : MalType {
         throw MalReaderException("Unrecognized token: " + next)
     }
 }
+
+fun read_shorthand(reader: Reader, symbol: String): MalType {
+    reader.next()
+
+    val list = MalList()
+    list.conj_BANG(MalSymbol(symbol))
+    list.conj_BANG(read_form(reader))
+
+    return list
+}
+
+fun read_with_meta(reader: Reader): MalType {
+    reader.next()
+
+    val meta = read_form(reader)
+    val obj = read_form(reader)
+
+    val list = MalList()
+    list.conj_BANG(MalSymbol("with-meta"))
+    list.conj_BANG(obj)
+    list.conj_BANG(meta)
+
+    return list
+}
+
+fun read_hashmap(reader: Reader): MalType {
+    reader.next()
+    val hashMap = MalHashMap()
+
+    do {
+        var value : MalType? = null;
+        val key = when (reader.peek()) {
+            null -> throw MalReaderException("expected '}', got EOF")
+            "}"  -> { reader.next(); null }
+            else -> {
+                var key = read_form(reader)
+                if (key !is MalString) {
+                    throw MalReaderException("hash-map keys must be strings or keywords")
+                }
+                value = when (reader.peek()) {
+                    null -> throw MalReaderException("expected form, got EOF")
+                    else -> read_form(reader)
+                }
+                key
+            }
+        }
+
+        if (key != null) {
+            hashMap.assoc_BANG(key, value as MalType)
+        }
+    } while (key != null)
+
+    return hashMap
+}
+
