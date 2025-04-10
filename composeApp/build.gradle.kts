@@ -69,7 +69,7 @@ kotlin {
             implementation(libs.kotlinx.coroutines.android)
         }
         commonMain.dependencies {
-            implementation("io.ktor:ktor-network:2.3.8")
+//            implementation("io.ktor:ktor-network:2.3.8")
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material)
@@ -81,10 +81,8 @@ kotlin {
             implementation(projects.shared)
             implementation(libs.ktor.client.core)
             implementation(libs.kotlinx.coroutines.core)
-            implementation(platform("io.arrow-kt:arrow-stack:2.0.1"))
-            // no versions on libraries
-            implementation("io.arrow-kt:arrow-core")
-            implementation("io.arrow-kt:arrow-fx-coroutines")
+            implementation(libs.arrow.core)
+            implementation(libs.arrow.fx.coroutines)
             implementation("com.squareup.okio:okio:$okioVersion")
         }
         desktopMain.dependencies {

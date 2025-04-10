@@ -1,12 +1,5 @@
 package org.kel.mics.IO
 
-import androidx.compose.runtime.mutableStateOf
-import arrow.core.Either
-import io.ktor.client.HttpClient
-import io.ktor.utils.io.readUTF8Line
-import io.ktor.utils.io.writeStringUtf8
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import org.kel.mics.Mal.MalType
 
 actual suspend fun createClientSocket(address: String, port: Int, message: String): String {
@@ -38,6 +31,6 @@ actual suspend fun dispatchSocketCall(
     address: String,
     port: Int,
     message: String,
-): Either<MalType, MalType> {
+): MalType {
     TODO("Not yet implemented")
 }

@@ -4,10 +4,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -19,19 +17,18 @@ import androidx.compose.material.TextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
-import org.kel.mics.IO.createClientSocket
+import org.kel.mics.IO.dispatchSocketCall
 import org.kel.mics.Mal.Env
 import org.kel.mics.Mal.ISeq
 import org.kel.mics.Mal.MalFunction
+import org.kel.mics.Mal.MalString
 import org.kel.mics.Mal.MalSymbol
 import org.kel.mics.Mal.eval
 import org.kel.mics.Mal.ns
@@ -39,6 +36,8 @@ import org.kel.mics.Mal.rep
 
 var history = mutableListOf<String>()
 var messages = mutableStateOf<String>("")
+var asyncOutputVal = mutableStateOf<MalString>(MalString(""))
+
 
 fun mmm () : Env {
     val repl_env = Env()
@@ -116,13 +115,14 @@ fun MiniBuffer(modifier: Modifier = Modifier) {
     }
 }
 
-
 @Composable
 @Preview
 fun App() {
     val scrollState = rememberScrollState()
+    val run = remember { mutableStateOf(false) }
     MaterialTheme {
         Column {
+            Text(asyncOutputVal.value.mal_print())
             MiniBuffer()
             Row(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                 MalBuffer(

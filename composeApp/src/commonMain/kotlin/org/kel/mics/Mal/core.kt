@@ -2,17 +2,15 @@ package org.kel.mics.Mal
 
 import androidx.compose.runtime.mutableStateOf
 import arrow.core.Either
-import arrow.core.getOrElse
 import arrow.core.left
 import arrow.core.right
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
-import org.kel.mics.IO.createClientSocket
 import org.kel.mics.IO.dispatchSocketCall
 import org.kel.mics.IO.readFileToStr
+import org.kel.mics.asyncOutputVal
 
 @OptIn(ExperimentalCoroutinesApi::class)
 val ns = hashMapOf<MalSymbol, MalType>(
@@ -81,34 +79,24 @@ val ns = hashMapOf<MalSymbol, MalType>(
 				       }),
 
 
-    MalSymbol("remote-shell-command") to MalSuspendFunction({ a: ISeq -> // NON ASYNC!
+    MalSymbol("remote-shell-command") to MalFunction({ a: ISeq -> // NON ASYNC!
         val cmd = a.first() as? MalString ?: throw MalException("Requires a String Param")
         val res = mutableStateOf<MalType>(NIL)
         val scope = CoroutineScope(Dispatchers.Default)
         scope.launch {
-            val result = dispatchSocketCall("192.168.157.123", 9002, cmd.value)
-            when (result) {
-                is Either.Left -> {
-                    println(result.value)
-//                    res.value = result.left()
-                }
-                is Either.Right -> {
-                    println(result.value)
-//                res.value = result.right()
-                }
-            }
+            val result = dispatchSocketCall("192.168.157.123", 9002, cmd.value, asyncOutputVal)
+            println(result.mal_print())
         }
-        res.value
-//        scope.launch {
-//            return@launch MalString(async { createClientSocket("192.168.157.123", 9002, cmd.value) }.await())
-//        }
-//        println("res ${res.value}")
-        // MalString(res.value.toString())
+        NIL
+
     }),
 
     // Take a type, update its documentation and return it?
     MalSymbol("set-doc") to MalFunction({ a: ISeq -> a.first().documentation = a.nth(1).toString()
         a.first()
+    }),
+    MalSymbol("show-async-res") to MalFunction({ a: ISeq -> println("printing, ${asyncOutputVal.value}, ${asyncOutputVal.value.mal_print()}")
+        NIL
     }),
     MalSymbol("doc") to MalFunction({ a: ISeq -> read_str(a.first().documentation) }),
 

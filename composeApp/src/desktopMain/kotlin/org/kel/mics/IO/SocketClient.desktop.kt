@@ -1,7 +1,6 @@
 package org.kel.mics.IO
 
 import androidx.compose.runtime.mutableStateOf
-import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import io.ktor.network.selector.SelectorManager
@@ -42,7 +41,7 @@ actual suspend fun dispatchSocketCall(
     address: String,
     port: Int,
     message: String,
-): Either<MalType, MalType> {
+): MalType {
     withContext(Dispatchers.IO) {
         try {
             val selectorManager = SelectorManager(Dispatchers.IO)
