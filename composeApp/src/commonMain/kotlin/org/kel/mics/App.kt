@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.io.bytestring.encodeToByteString
+import okio.Buffer
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.kel.mics.IO.dispatchSocketCall
 import org.kel.mics.Mal.Env
@@ -30,13 +32,17 @@ import org.kel.mics.Mal.ISeq
 import org.kel.mics.Mal.MalFunction
 import org.kel.mics.Mal.MalString
 import org.kel.mics.Mal.MalSymbol
+import org.kel.mics.Mal.NIL
 import org.kel.mics.Mal.eval
 import org.kel.mics.Mal.ns
 import org.kel.mics.Mal.rep
 
 var history = mutableListOf<String>()
 var messages = mutableStateOf<String>("")
-var asyncOutputVal = mutableStateOf<MalString>(MalString(""))
+var messageBuffer = mutableStateOf(Buffer())
+var asyncOutputVal = mutableStateListOf<MalString>(MalString(""))
+//var buffers = mutableListOf<Buffer>(messageBuffer)
+
 
 
 fun mmm () : Env {
@@ -44,8 +50,19 @@ fun mmm () : Env {
     ns.forEach({ it -> repl_env.set(it.key, it.value) })
 
     // repl_env.set(MalSymbol("*ARGV*"), MalList(args.drop(1).map({ it -> MalString(it) }).toMutableList()))
+
+    repl_env.set(MalSymbol("create-buffer"), MalFunction({ a: ISeq -> eval(a.first(), repl_env) })) // (create-buffer "name")
+    repl_env.set(MalSymbol("switch-buffer"), MalFunction({ a: ISeq -> eval(a.first(), repl_env) })) //(switch-buffer "BUFFER_NAME")
+
+
     repl_env.set(MalSymbol("eval"), MalFunction({ a: ISeq -> eval(a.first(), repl_env) }))
     repl_env.set(MalSymbol("ns"), MalFunction({ a: ISeq -> repl_env.showNamespace() }))
+    repl_env.set(MalSymbol("show-variable"), MalFunction({ a: ISeq ->
+        println(repl_env.get("test")?.mal_print())
+        NIL
+    }))
+
+
 
     rep("(def! not (fn* (a) (if a false true)))", repl_env)
     rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))", repl_env)
@@ -66,37 +83,39 @@ val repl_env = mmm()
 fun MalBuffer(
     modifier: Modifier = Modifier,
     readOnly: Boolean = true,
-    contents: String = "",
+    buffer: MutableState<Buffer> = (mutableStateOf (Buffer())),
     name: String = ""
     ) {
-
+    val contents = remember{ mutableStateOf("")}
     Column (modifier=Modifier.fillMaxWidth()) {
         Box(modifier = Modifier.fillMaxWidth().border(2.dp, color = Color.Blue)) { // TODO: replace this with a modebar?
             Text(text = "Buffer: ${name}\n", fontStyle = FontStyle.Italic, modifier = Modifier)
         }
         Box {
             if (readOnly) {
-                Text(text = contents)
+                Text(text = contents.value)
             } else {
                 // TODO: Textarea
                 Text(text = "Buffer: ${name}\n", fontStyle = FontStyle.Italic, modifier = Modifier.padding(10.dp))
             }
         }
     }
+    LaunchedEffect(buffer.value.size) {
+        println("104")
+        contents.value = buffer.value.readUtf8()
+    }
 }
-
-// suspend fun TestShellBuffer() {
-//     createClientSocket("192.168.157.123", 9002, "whoami")
-// }
 
 @Composable
 fun MiniBuffer(modifier: Modifier = Modifier) {
     var input = remember { mutableStateOf("") }
     var output = remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+
     // scope.launch {
     //     TestShellBuffer()
     // }
+
     Row(modifier = modifier) {
         TextField(value = input.value,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -108,6 +127,10 @@ fun MiniBuffer(modifier: Modifier = Modifier) {
             output.value = rep(input.value, repl_env)
             println(output.value)
             history.add(output.value)
+            messageBuffer.value.writeUtf8("${output.value}\n")
+            println("updated")
+            println(messageBuffer.value.snapshot().utf8())
+//            messageBuffer.value.writeUtf8("${output.value}\n")
             messages.value += "${output.value}\n"
         }) {
             Text("Evaluate")
@@ -122,13 +145,15 @@ fun App() {
     val run = remember { mutableStateOf(false) }
     MaterialTheme {
         Column {
-            Text(asyncOutputVal.value.mal_print())
+            asyncOutputVal.forEach {
+                Text(it.mal_print())
+            }
             MiniBuffer()
             Row(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                 MalBuffer(
                     modifier = Modifier.padding(10.dp),//.fillMaxSize().verticalScroll(rememberScrollState()),
                     readOnly = true,
-                    contents = messages.value,
+                    buffer = messageBuffer,
                     name = "*Messages*"
                 )
             }

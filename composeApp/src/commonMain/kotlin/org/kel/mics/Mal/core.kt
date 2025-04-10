@@ -1,9 +1,6 @@
 package org.kel.mics.Mal
 
 import androidx.compose.runtime.mutableStateOf
-import arrow.core.Either
-import arrow.core.left
-import arrow.core.right
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -81,10 +78,11 @@ val ns = hashMapOf<MalSymbol, MalType>(
 
     MalSymbol("remote-shell-command") to MalFunction({ a: ISeq -> // NON ASYNC!
         val cmd = a.first() as? MalString ?: throw MalException("Requires a String Param")
+        val addrs = a.nth(1) as? MalString ?: MalString("0.0.0.0")
         val res = mutableStateOf<MalType>(NIL)
         val scope = CoroutineScope(Dispatchers.Default)
         scope.launch {
-            val result = dispatchSocketCall("192.168.157.123", 9002, cmd.value, asyncOutputVal)
+            val result = dispatchSocketCall(addrs.value, 9002, cmd.value, asyncOutputVal)
             println(result.mal_print())
         }
         NIL
@@ -94,9 +92,6 @@ val ns = hashMapOf<MalSymbol, MalType>(
     // Take a type, update its documentation and return it?
     MalSymbol("set-doc") to MalFunction({ a: ISeq -> a.first().documentation = a.nth(1).toString()
         a.first()
-    }),
-    MalSymbol("show-async-res") to MalFunction({ a: ISeq -> println("printing, ${asyncOutputVal.value}, ${asyncOutputVal.value.mal_print()}")
-        NIL
     }),
     MalSymbol("doc") to MalFunction({ a: ISeq -> read_str(a.first().documentation) }),
 

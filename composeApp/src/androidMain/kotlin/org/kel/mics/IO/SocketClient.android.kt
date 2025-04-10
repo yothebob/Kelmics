@@ -1,8 +1,6 @@
 package org.kel.mics.IO
 
-import androidx.compose.runtime.MutableState
-import arrow.core.left
-import arrow.core.right
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
@@ -44,7 +42,7 @@ actual suspend fun dispatchSocketCall(
     address: String,
     port: Int,
     message: String,
-    resVal: MutableState<MalString>
+    resVal: SnapshotStateList<MalString>
 ): MalType {
     return try {
         withContext(Dispatchers.IO) {
@@ -65,9 +63,9 @@ actual suspend fun dispatchSocketCall(
             println("Received: $response")
 
             withContext(Dispatchers.Main) {
-                resVal.value = MalString(response!!.replace("<RNL>", "\r\n").replace("<NL>", "\n") ?: "(null)")
+                resVal.add(MalString(response!!.replace("<RNL>", "\r\n").replace("<NL>", "\n") ?: "(null)"))
             }
-            resVal.value
+            resVal.last()
         }
     } catch (e: Exception) {
         println("ERROR: ${e.message}")
