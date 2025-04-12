@@ -1,16 +1,22 @@
 package org.kel.mics
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
@@ -20,13 +26,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.io.bytestring.encodeToByteString
 import okio.Buffer
 import org.jetbrains.compose.ui.tooling.preview.Preview
-import org.kel.mics.IO.dispatchSocketCall
+import org.kel.mics.Buffers.KelBuffer
 import org.kel.mics.Mal.Env
 import org.kel.mics.Mal.ISeq
 import org.kel.mics.Mal.MalFunction
@@ -38,10 +40,10 @@ import org.kel.mics.Mal.ns
 import org.kel.mics.Mal.rep
 
 var history = mutableListOf<String>()
-var messages = mutableStateOf<String>("")
-var messageBuffer = mutableStateOf(Buffer())
-var asyncOutputVal = mutableStateListOf<MalString>(MalString(""))
-//var buffers = mutableListOf<Buffer>(messageBuffer)
+var MESSAGES_BUFFER = KelBuffer(name="*Messages*")
+var CURRENT_BUFFER = mutableStateOf<KelBuffer>(MESSAGES_BUFFER)
+var ASYNC_BUFFER = KelBuffer("*Remote-msg*")
+var BUFFERS = mutableStateListOf<KelBuffer>(MESSAGES_BUFFER, ASYNC_BUFFER)
 
 
 
@@ -51,8 +53,21 @@ fun mmm () : Env {
 
     // repl_env.set(MalSymbol("*ARGV*"), MalList(args.drop(1).map({ it -> MalString(it) }).toMutableList()))
 
-    repl_env.set(MalSymbol("create-buffer"), MalFunction({ a: ISeq -> eval(a.first(), repl_env) })) // (create-buffer "name")
-    repl_env.set(MalSymbol("switch-buffer"), MalFunction({ a: ISeq -> eval(a.first(), repl_env) })) //(switch-buffer "BUFFER_NAME")
+    repl_env.set(MalSymbol("create-buffer"), MalFunction({ a: ISeq ->
+        // TODO:
+        val nameCount = BUFFERS.count { it.name.replace(Regex("/<\\d+>$"), "") == a.first().getVal().toString() }
+        val buffName = if (nameCount == 0) a.first().getVal().toString() else "${a.first().getVal().toString()}<${nameCount}>"
+        BUFFERS.add(KelBuffer(name=buffName))
+        NIL
+    })) // (create-buffer "name")
+    repl_env.set(MalSymbol("switch-buffer"), MalFunction({ a: ISeq ->
+        // TODO: have a wrapper class around okio buffer for holding name and stuff.
+        val foundBuffer = BUFFERS.first { it.name == a.first().getVal() }
+        if (foundBuffer != null) {
+            CURRENT_BUFFER.value = foundBuffer
+        }
+        NIL
+    })) //(switch-buffer "BUFFER_NAME")
 
 
     repl_env.set(MalSymbol("eval"), MalFunction({ a: ISeq -> eval(a.first(), repl_env) }))
@@ -83,10 +98,10 @@ val repl_env = mmm()
 fun MalBuffer(
     modifier: Modifier = Modifier,
     readOnly: Boolean = true,
-    buffer: MutableState<Buffer> = (mutableStateOf (Buffer())),
+    buffer: Buffer = Buffer(),
+    contents: MutableState<String>,
     name: String = ""
     ) {
-    val contents = remember{ mutableStateOf("")}
     Column (modifier=Modifier.fillMaxWidth()) {
         Box(modifier = Modifier.fillMaxWidth().border(2.dp, color = Color.Blue)) { // TODO: replace this with a modebar?
             Text(text = "Buffer: ${name}\n", fontStyle = FontStyle.Italic, modifier = Modifier)
@@ -100,21 +115,12 @@ fun MalBuffer(
             }
         }
     }
-    LaunchedEffect(buffer.value.size) {
-        println("104")
-        contents.value = buffer.value.readUtf8()
-    }
 }
 
 @Composable
-fun MiniBuffer(modifier: Modifier = Modifier) {
+fun MiniBuffer(modifier: Modifier = Modifier, bufferContents: MutableState<String>) {
     var input = remember { mutableStateOf("") }
     var output = remember { mutableStateOf("") }
-    val scope = rememberCoroutineScope()
-
-    // scope.launch {
-    //     TestShellBuffer()
-    // }
 
     Row(modifier = modifier) {
         TextField(value = input.value,
@@ -125,13 +131,9 @@ fun MiniBuffer(modifier: Modifier = Modifier) {
     Row {
         Button(onClick = {
             output.value = rep(input.value, repl_env)
-            println(output.value)
             history.add(output.value)
-            messageBuffer.value.writeUtf8("${output.value}\n")
-            println("updated")
-            println(messageBuffer.value.snapshot().utf8())
-//            messageBuffer.value.writeUtf8("${output.value}\n")
-            messages.value += "${output.value}\n"
+            MESSAGES_BUFFER.buf.writeUtf8("${output.value}\n")
+            bufferContents.value = MESSAGES_BUFFER.buf.snapshot().utf8()
         }) {
             Text("Evaluate")
         }
@@ -141,21 +143,73 @@ fun MiniBuffer(modifier: Modifier = Modifier) {
 @Composable
 @Preview
 fun App() {
-    val scrollState = rememberScrollState()
-    val run = remember { mutableStateOf(false) }
+    val contents = remember { mutableStateOf("") }
     MaterialTheme {
         Column {
-            asyncOutputVal.forEach {
-                Text(it.mal_print())
+            MultiBufferExample()
+//            MiniBuffer(bufferContents=contents)
+//            Row(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+//                MalBuffer(
+//                    modifier = Modifier.padding(10.dp),
+//                    readOnly = true,
+//                    buffer = CURRENT_BUFFER.value,
+//                    contents = contents,
+//                    name = "*Messages*"
+//                )
+//            }
+        }
+    }
+}
+
+
+@Composable
+fun MultiBufferExample() {
+    var text by remember { mutableStateOf("") }
+    var displayText by remember { mutableStateOf("") }
+
+    Column(modifier = Modifier.padding(16.dp)) {
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            BUFFERS.forEach { buff ->
+                Button(
+                    onClick = {
+                        CURRENT_BUFFER.value = buff
+                        displayText = buff.buf.snapshot().utf8()
+                    },
+                    colors = if (buff.name == CURRENT_BUFFER.value.name) ButtonDefaults.buttonColors(MaterialTheme.colors.primary)
+                    else ButtonDefaults.buttonColors(MaterialTheme.colors.secondary)
+                ) {
+                    Text(buff.name)
+                }
             }
-            MiniBuffer()
-            Row(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                MalBuffer(
-                    modifier = Modifier.padding(10.dp),//.fillMaxSize().verticalScroll(rememberScrollState()),
-                    readOnly = true,
-                    buffer = messageBuffer,
-                    name = "*Messages*"
-                )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        TextField(
+            value = text,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            onValueChange = { text = it },
+            label = { Text("") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(onClick = {
+            CURRENT_BUFFER.value.buf.writeUtf8("${rep(text, repl_env)}\n")
+            CURRENT_BUFFER.value.buf.writeUtf8(text + "\n")
+            displayText = CURRENT_BUFFER.value.buf.snapshot().utf8()
+            text = ""
+        }) {
+            Text("Eval")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        LazyColumn(modifier = Modifier.fillMaxHeight(1f)) {
+            items(displayText.lines().size) { i ->
+                Text(displayText.lines()[i])
             }
         }
     }

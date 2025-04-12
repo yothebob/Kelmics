@@ -1,13 +1,16 @@
 package org.kel.mics.Mal
 
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import org.kel.mics.ASYNC_BUFFER
 import org.kel.mics.IO.dispatchSocketCall
 import org.kel.mics.IO.readFileToStr
-import org.kel.mics.asyncOutputVal
+
+val asyncOutputVal =  mutableStateListOf<MalString>(MalString(""))
 
 @OptIn(ExperimentalCoroutinesApi::class)
 val ns = hashMapOf<MalSymbol, MalType>(
@@ -79,11 +82,10 @@ val ns = hashMapOf<MalSymbol, MalType>(
     MalSymbol("remote-shell-command") to MalFunction({ a: ISeq -> // NON ASYNC!
         val cmd = a.first() as? MalString ?: throw MalException("Requires a String Param")
         val addrs = a.nth(1) as? MalString ?: MalString("0.0.0.0")
-        val res = mutableStateOf<MalType>(NIL)
         val scope = CoroutineScope(Dispatchers.Default)
         scope.launch {
             val result = dispatchSocketCall(addrs.value, 9002, cmd.value, asyncOutputVal)
-            println(result.mal_print())
+            ASYNC_BUFFER.buf.writeUtf8(result.getVal())
         }
         NIL
 

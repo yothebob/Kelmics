@@ -1,0 +1,26 @@
+#+TITLE: Kelmics 
+
+_About_
+ TODO
+
+_Usage_
+
+
+_Installation_
+
+
+_Building_
+
+
+_wiki_
+
+* Building
+This is a Kotlin Multiplatform project targeting Android, iOS, Web, Desktop, Server.
+
+ - ./gradlew wasmJsBrowserRun -t  (web run)
+
+ - ./gradlew kotlinUpgradeYarnLock (yarn upgrade)
+ 
+You can open the web application by running the `:composeApp:wasmJsBrowserDevelopmentRun` Gradle task.
+
+

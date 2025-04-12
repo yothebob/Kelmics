@@ -1,25 +1,16 @@
 package org.kel.mics.Buffers
 
+import okio.Buffer
+
 enum class WindowTypeEnum {
     TEXT,
     PROMPT
 }
 
-
-class BufferCore() {
-
-    var BUFFERS = listOf<Buffer>()
-    var CURRENTBUFFER: Buffer = Buffer()
-
-    init {
-        println("init logging buffer...")
-    }
-}
-
-class Buffer() {
-    var name = ""
-    var windowType = WindowTypeEnum.TEXT
-    var bufferContents = "Hello world!"
+class KelBuffer(name: String, windowType: WindowTypeEnum = WindowTypeEnum.TEXT) {
+    var name = name
+    var windowType = windowType
+    var buf = Buffer()
 
     // update
 
