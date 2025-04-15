@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
@@ -39,11 +40,11 @@ import org.kel.mics.Mal.eval
 import org.kel.mics.Mal.ns
 import org.kel.mics.Mal.rep
 
-var history = mutableListOf<String>()
 var MESSAGES_BUFFER = KelBuffer(name="*Messages*")
 var CURRENT_BUFFER = mutableStateOf<KelBuffer>(MESSAGES_BUFFER)
+var HISTORY_BUFFER = KelBuffer(name="*History*")
 var ASYNC_BUFFER = KelBuffer("*Remote-msg*")
-var BUFFERS = mutableStateListOf<KelBuffer>(MESSAGES_BUFFER, ASYNC_BUFFER)
+var BUFFERS = mutableStateListOf<KelBuffer>(MESSAGES_BUFFER, ASYNC_BUFFER, HISTORY_BUFFER)
 
 
 
@@ -57,7 +58,11 @@ fun mmm () : Env {
         // TODO:
         val nameCount = BUFFERS.count { it.name.replace(Regex("/<\\d+>$"), "") == a.first().getVal().toString() }
         val buffName = if (nameCount == 0) a.first().getVal().toString() else "${a.first().getVal().toString()}<${nameCount}>"
-        BUFFERS.add(KelBuffer(name=buffName))
+        val newBuffer = KelBuffer(name=buffName)
+        BUFFERS.add(newBuffer)
+        if (a.nth(1) != null) {
+            newBuffer.buf.writeUtf8((a.nth(1) as MalString).getVal())
+        }
         NIL
     })) // (create-buffer "name")
     repl_env.set(MalSymbol("switch-buffer"), MalFunction({ a: ISeq ->
@@ -80,6 +85,7 @@ fun mmm () : Env {
 
 
     rep("(def! not (fn* (a) (if a false true)))", repl_env)
+    rep("(def! find-file (fn* (fname) (create-buffer fname (slurp fname))))", repl_env)
     rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))", repl_env)
     rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))", repl_env)
     return repl_env
@@ -131,7 +137,7 @@ fun MiniBuffer(modifier: Modifier = Modifier, bufferContents: MutableState<Strin
     Row {
         Button(onClick = {
             output.value = rep(input.value, repl_env)
-            history.add(output.value)
+            HISTORY_BUFFER.buf.writeUtf8("${input.value}\n")
             MESSAGES_BUFFER.buf.writeUtf8("${output.value}\n")
             bufferContents.value = MESSAGES_BUFFER.buf.snapshot().utf8()
         }) {
@@ -197,8 +203,8 @@ fun MultiBufferExample() {
         Spacer(modifier = Modifier.height(8.dp))
 
         Button(onClick = {
-            CURRENT_BUFFER.value.buf.writeUtf8("${rep(text, repl_env)}\n")
-            CURRENT_BUFFER.value.buf.writeUtf8(text + "\n")
+            HISTORY_BUFFER.buf.writeUtf8("${text}\n")
+            MESSAGES_BUFFER.buf.writeUtf8("${rep(text, repl_env)}\n")
             displayText = CURRENT_BUFFER.value.buf.snapshot().utf8()
             text = ""
         }) {
@@ -206,10 +212,11 @@ fun MultiBufferExample() {
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-
-        LazyColumn(modifier = Modifier.fillMaxHeight(1f)) {
-            items(displayText.lines().size) { i ->
-                Text(displayText.lines()[i])
+        SelectionContainer {
+            LazyColumn(modifier = Modifier.fillMaxHeight(1f)) {
+                items(displayText.lines().size) { i ->
+                        Text(displayText.lines()[i])
+                    }
             }
         }
     }

@@ -23,4 +23,27 @@ This is a Kotlin Multiplatform project targeting Android, iOS, Web, Desktop, Ser
  
 You can open the web application by running the `:composeApp:wasmJsBrowserDevelopmentRun` Gradle task.
 
+* TODO LIST
 
+- [X] add command history, (as a default buffer?)
+- [X] Add selectable/copyable text
+  
+- [ ] add read-remote-file
+- [ ] adapt wasmjs build to be able to connect to remote server
+- [ ] add HttpClient with hooks for integrating into MAL
+- [ ] finish MAL language
+- [ ] add read-buffer command (read-buffer "BUFFER-NAME") => "returns the buffer contents as malstring"
+- [ ] add write-buffer command (write-buffer "BUFFER-NAME" "contents") => NIL /returns NIL, append writes string to buffer contents/
+- [ ] add safe typing and documentation for functions.
+- [ ] add file-path to MalBuffer, allowing name to be more of a display name
+- [ ] add varible hooks into app color scheme
+- [ ] Add file type modes (html w/ html render & highlighting, etc)
+- [ ] the mini-buffer prompt open/close.
+- [ ] mini-buffer auto complete
+- [ ] macro support
+- [ ] write remote-file
+- [ ] dired clone
+- [ ] editable buffers
+- [ ] save-file command (save-file CURRENT-BUFFER) => NIL (save buffer contents into file)
+- [ ] support split window displaying multiple buffers
+- [ ] add https://github.com/Animeshz/keyboard-mouse-kt support

@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import org.kel.mics.ASYNC_BUFFER
+import org.kel.mics.BUFFERS
 import org.kel.mics.IO.dispatchSocketCall
 import org.kel.mics.IO.readFileToStr
 
@@ -89,6 +90,20 @@ val ns = hashMapOf<MalSymbol, MalType>(
         }
         NIL
 
+    }),
+    MalSymbol("nth-remote") to MalFunction({ a: ISeq -> // NON ASYNC!
+        val idx =  a.first() as? MalInteger ?: MalInteger(0) // TODO: make a .getOrElse Function
+        val responses = ASYNC_BUFFER.buf.snapshot().utf8().split("\n")
+        println(responses)
+        println(idx)
+        val res = responses.getOrNull(idx.value.toInt())
+        if (res != null) MalString(res) else NIL
+    }),
+
+    MalSymbol("read-buffer") to MalFunction({a : ISeq ->
+        val buffName = a.first() as? MalString ?: throw MalException("takes a str arg")
+        val buffToRead = BUFFERS.first { buffName.value == it.name }
+        MalString(buffToRead.buf.snapshot().utf8())
     }),
 
     // Take a type, update its documentation and return it?
