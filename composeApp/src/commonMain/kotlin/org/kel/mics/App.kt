@@ -60,9 +60,9 @@ fun mmm () : Env {
         val buffName = if (nameCount == 0) a.first().getVal().toString() else "${a.first().getVal().toString()}<${nameCount}>"
         val newBuffer = KelBuffer(name=buffName)
         BUFFERS.add(newBuffer)
-        if (a.nth(1) != null) {
-            newBuffer.buf.writeUtf8((a.nth(1) as MalString).getVal())
-        }
+//        if (a.nth(1) != null) {
+//            newBuffer.buf.writeUtf8((a.nth(1) as MalString).getVal())
+//        }
         NIL
     })) // (create-buffer "name")
     repl_env.set(MalSymbol("switch-buffer"), MalFunction({ a: ISeq ->

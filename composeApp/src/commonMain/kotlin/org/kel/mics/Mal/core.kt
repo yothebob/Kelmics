@@ -105,6 +105,13 @@ val ns = hashMapOf<MalSymbol, MalType>(
         val buffToRead = BUFFERS.first { buffName.value == it.name }
         MalString(buffToRead.buf.snapshot().utf8())
     }),
+    MalSymbol("write-buffer") to MalFunction({a : ISeq ->
+        val buffName = a.first() as? MalString ?: throw MalException("takes a str arg")
+        val buffContents = a.nth(1) as? MalString ?: throw MalException("takes a str arg")
+        val buffToWrite = BUFFERS.first { buffName.value == it.name }
+        buffToWrite.buf.writeUtf8(buffContents.value)
+        NIL
+    }),
 
     // Take a type, update its documentation and return it?
     MalSymbol("set-doc") to MalFunction({ a: ISeq -> a.first().documentation = a.nth(1).toString()
