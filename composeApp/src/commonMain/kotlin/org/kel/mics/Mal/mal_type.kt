@@ -121,11 +121,6 @@ interface ILambda : MalType {
 }
 
 
-interface MalAsync : MalType {
-    suspend fun asyncApply(seq: ISeq): MalType
-}
-
-
 open class MalFunction(val lambda: (ISeq) -> MalType?) : MalType, ILambda {
     override fun mal_print(): String = "TODO: Function"
     var is_macro: Boolean = false
@@ -140,32 +135,6 @@ open class MalFunction(val lambda: (ISeq) -> MalType?) : MalType, ILambda {
     }
 }
 
-open class MalSuspendFunction(val lambda: suspend (ISeq) -> MalType) : MalType, MalAsync {
-    override fun mal_print(): String = "TODO: Function"
-    var is_macro: Boolean = false
-    override var metadata: MalType = NIL
-
-    override suspend fun asyncApply(seq: ISeq): MalType = lambda(seq)
-
-    override fun with_meta(meta: MalType): MalType {
-        val obj = MalSuspendFunction(lambda)
-        obj.metadata = meta
-        return obj
-    }
-}
-//open class MalSuspendFunction(val lambda:  () -> MalString) : MalType, ILambda {
-//    override fun mal_print(): String = "TODO: Function"
-//    var is_macro: Boolean = false
-//    override var metadata: MalType = NIL
-//
-//    override fun apply(seq: ISeq): MalType = lambda(seq)!!
-//
-//    override fun with_meta(meta: MalType): MalType {
-//        val obj = MalFunction(lambda)
-//        obj.metadata = meta
-//        return obj
-//    }
-//}
 
 class MalFnFunction(val ast: MalType, val params: Sequence<MalSymbol>, val env: Env, lambda: (ISeq) -> MalType?) : MalFunction(lambda) {
     override fun with_meta(meta: MalType): MalType {
@@ -188,6 +157,10 @@ interface ISeq : MalType {
 interface IMutableSeq : ISeq {
     fun conj_BANG(form: MalType)
 }
+
+sealed interface MalResult
+data class MalValue(val value: MalType): MalResult
+data class MalAsync(val run: (suspend (MalType) -> Unit) -> Unit): MalResult
 
 abstract class MalSequence(val elements: MutableList<MalType>) : MalType, IMutableSeq {
     override fun mal_print(): String {

@@ -20,7 +20,12 @@ s1.listen(1)
 
 print("Server is listening...")
 
-
+"""
+TODO:
+- [let this work for HTTP and NOT]
+- add authentication
+- return http unauthorized if not
+"""
 
 
 while True:

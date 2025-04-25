@@ -1,5 +1,6 @@
 package org.kel.mics
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,9 +25,17 @@ import androidx.compose.material.TextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import io.ktor.util.reflect.typeInfo
 import okio.Buffer
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.kel.mics.Buffers.KelBuffer
@@ -39,13 +48,16 @@ import org.kel.mics.Mal.NIL
 import org.kel.mics.Mal.eval
 import org.kel.mics.Mal.ns
 import org.kel.mics.Mal.rep
+import kotlin.reflect.typeOf
 
 var MESSAGES_BUFFER = KelBuffer(name="*Messages*")
 var CURRENT_BUFFER = mutableStateOf<KelBuffer>(MESSAGES_BUFFER)
 var HISTORY_BUFFER = KelBuffer(name="*History*")
 var ASYNC_BUFFER = KelBuffer("*Remote-msg*")
 var BUFFERS = mutableStateListOf<KelBuffer>(MESSAGES_BUFFER, ASYNC_BUFFER, HISTORY_BUFFER)
-
+var backgroundColor = mutableStateOf(0XFF15467B)
+var textHook = mutableStateOf("")
+var text = mutableStateOf("")
 
 
 fun mmm () : Env {
@@ -73,8 +85,6 @@ fun mmm () : Env {
         }
         NIL
     })) //(switch-buffer "BUFFER_NAME")
-
-
     repl_env.set(MalSymbol("eval"), MalFunction({ a: ISeq -> eval(a.first(), repl_env) }))
     repl_env.set(MalSymbol("ns"), MalFunction({ a: ISeq -> repl_env.showNamespace() }))
     repl_env.set(MalSymbol("show-variable"), MalFunction({ a: ISeq ->
@@ -88,6 +98,7 @@ fun mmm () : Env {
     rep("(def! find-file (fn* (fname) (create-buffer fname (slurp fname))))", repl_env)
     rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))", repl_env)
     rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))", repl_env)
+    rep("(def! switch-create-buffer (fn* (buffer-name) (if (buffer-exists buffer-name) (switch-buffer buffer-name) (do (create-buffer buffer-name) (switch-buffer buffer-name)))))", repl_env)
     return repl_env
 
 //if (args.any()) {
@@ -168,12 +179,47 @@ fun App() {
 }
 
 
+class MatchParenTransformation(
+    val color: Color
+) : VisualTransformation {
+    override fun filter(atext: AnnotatedString): TransformedText {
+        return TransformedText(
+            buildAnnotatedStringWithUrlHighlighting(atext.toString(), color),
+            OffsetMapping.Identity
+        )
+    }
+
+    fun buildAnnotatedStringWithUrlHighlighting(
+        text: String,
+        color: Color
+    ): AnnotatedString {
+        return buildAnnotatedString {
+            append(text)
+            text?.split("\\s+".toRegex())?.filter { word ->
+                word == "aa"
+            }?.forEach {
+                val startIndex = text.indexOf(it)
+                val endIndex = startIndex + it.length
+                addStyle(
+                    style = SpanStyle(
+                        color = color,
+                        textDecoration = TextDecoration.None
+                    ),
+                    start = startIndex, end = endIndex
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun MultiBufferExample() {
-    var text by remember { mutableStateOf("") }
+
     var displayText by remember { mutableStateOf("") }
 
-    Column(modifier = Modifier.padding(16.dp)) {
+    Column(modifier = Modifier.padding(16.dp).background(Color(
+        0XFFD1D2D4
+    ))) {
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             BUFFERS.forEach { buff ->
@@ -193,9 +239,10 @@ fun MultiBufferExample() {
         Spacer(modifier = Modifier.height(16.dp))
 
         TextField(
-            value = text,
+            value = text.value,
+            visualTransformation = MatchParenTransformation(Color.Blue),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            onValueChange = { text = it },
+            onValueChange = { text.value = it },
             label = { Text("") },
             modifier = Modifier.fillMaxWidth()
         )
@@ -203,10 +250,14 @@ fun MultiBufferExample() {
         Spacer(modifier = Modifier.height(8.dp))
 
         Button(onClick = {
-            HISTORY_BUFFER.buf.writeUtf8("${text}\n")
-            MESSAGES_BUFFER.buf.writeUtf8("${rep(text, repl_env)}\n")
+            HISTORY_BUFFER.buf.writeUtf8("${text.value}\n")
+            MESSAGES_BUFFER.buf.writeUtf8("${rep(text.value, repl_env)}\n")
             displayText = CURRENT_BUFFER.value.buf.snapshot().utf8()
-            text = ""
+            text.value = if (textHook.value == null) { "" } else {
+                var autocomplete = textHook.value
+                textHook.value = ""
+                autocomplete
+            }
         }) {
             Text("Eval")
         }

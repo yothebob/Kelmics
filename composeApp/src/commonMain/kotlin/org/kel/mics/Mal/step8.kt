@@ -62,6 +62,13 @@ fun eval(_ast: MalType, _env: Env): MalType {
                 if (ast.count() == 0) return ast
                 when ((ast.first() as? MalSymbol)?.value) {
                     "def!" -> return env.set(ast.nth(1) as MalSymbol, eval(ast.nth(2), env))
+                    "progn" -> {
+                        var result: MalType = NIL
+                        for (form in ast.elements.drop(1)) {
+                            result = eval(form, env)
+                        }
+                        return result
+                    }
                     "defmacro!" -> {
                         val macroFun = eval(ast.nth(2), env) as MalFunction
                         macroFun.is_macro = true
@@ -84,7 +91,7 @@ fun eval(_ast: MalType, _env: Env): MalType {
                     "quote" -> return ast.nth(1)
                     "quasiquote" -> return quisiquote_fun(ast.nth(1))
                     "fn*" -> return fn_STAR(ast, env)
-                    "do" -> {
+                    "do" -> {// AKA progn
                         for (i in 1..ast.count() - 2) {
                             eval(ast.nth(i), env)
                         }

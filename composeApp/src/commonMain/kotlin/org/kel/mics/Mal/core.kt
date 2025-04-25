@@ -2,14 +2,23 @@ package org.kel.mics.Mal
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.toMutableStateList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okio.Buffer
+import okio.Sink
 import org.kel.mics.ASYNC_BUFFER
 import org.kel.mics.BUFFERS
+import org.kel.mics.CURRENT_BUFFER
 import org.kel.mics.IO.dispatchSocketCall
 import org.kel.mics.IO.readFileToStr
+import org.kel.mics.IO.translateNewLines
+import org.kel.mics.textHook
+import kotlin.time.Duration.Companion.seconds
 
 val asyncOutputVal =  mutableStateListOf<MalString>(MalString(""))
 
@@ -24,13 +33,11 @@ val ns = hashMapOf<MalSymbol, MalType>(
         println(a.seq().map { it.mal_print() }.joinToString(" "))
         NIL }),
     MalSymbol("str") to MalFunction({ a: ISeq ->
-        println(a.seq().map { it.mal_print() }.joinToString(" "))
         MalString(a.seq().map { it.mal_print() }.joinToString(" "))}),
     MalSymbol("pr-str") to MalFunction({ a: ISeq ->
-					println(a.seq().map { it.mal_print() }.joinToString(" "))
-					MalString(a.seq().map { it.mal_print() }.joinToString(" "))}),
-    
-//    pr-str, prn, println
+					MalString(a.seq().map { it.mal_print() }.joinToString(""))}),
+    MalSymbol("string-concat") to MalFunction({ a: ISeq ->
+        MalString(a.seq().map { it.mal_print() }.joinToString(""))}),
 
 
     MalSymbol("list") to MalFunction({ a: ISeq -> MalList(a.seq().toMutableList()) }),
@@ -84,33 +91,65 @@ val ns = hashMapOf<MalSymbol, MalType>(
         val cmd = a.first() as? MalString ?: throw MalException("Requires a String Param")
         val addrs = a.nth(1) as? MalString ?: MalString("0.0.0.0")
         val scope = CoroutineScope(Dispatchers.Default)
+        ASYNC_BUFFER.buf.clear()
         scope.launch {
             val result = dispatchSocketCall(addrs.value, 9002, cmd.value, asyncOutputVal)
-            ASYNC_BUFFER.buf.writeUtf8(result.getVal())
+//            ASYNC_BUFFER.buf.writeUtf8("${translateNewLines(result.getVal())}")
         }
-        NIL
-
-    }),
-    MalSymbol("nth-remote") to MalFunction({ a: ISeq -> // NON ASYNC!
-        val idx =  a.first() as? MalInteger ?: MalInteger(0) // TODO: make a .getOrElse Function
-        val responses = ASYNC_BUFFER.buf.snapshot().utf8().split("\n")
-        println(responses)
-        println(idx)
-        val res = responses.getOrNull(idx.value.toInt())
-        if (res != null) MalString(res) else NIL
+        MalString(asyncOutputVal.last().value)
     }),
 
+    MalSymbol("translate-new-lines") to MalFunction({a : ISeq ->
+        val str = a.first() as? MalString ?: throw MalException("takes a str arg")
+        MalString(translateNewLines(str.value))
+    }),
     MalSymbol("read-buffer") to MalFunction({a : ISeq ->
         val buffName = a.first() as? MalString ?: throw MalException("takes a str arg")
         val buffToRead = BUFFERS.first { buffName.value == it.name }
         MalString(buffToRead.buf.snapshot().utf8())
     }),
+
     MalSymbol("write-buffer") to MalFunction({a : ISeq ->
         val buffName = a.first() as? MalString ?: throw MalException("takes a str arg")
         val buffContents = a.nth(1) as? MalString ?: throw MalException("takes a str arg")
         val buffToWrite = BUFFERS.first { buffName.value == it.name }
+        println("buffContents, ${buffContents.value}")
         buffToWrite.buf.writeUtf8(buffContents.value)
         NIL
+    }),
+    MalSymbol("delete-buffer") to MalFunction({a : ISeq ->
+        val buffName = a.first() as? MalString ?: throw MalException("takes a str arg")
+        BUFFERS = BUFFERS.filter { it.name != buffName.value }.toMutableStateList()
+        NIL
+    }),
+    MalSymbol("buffer-exists") to MalFunction({a : ISeq ->
+						  val buffName = a.first() as? MalString ?: throw MalException("takes a str arg")
+						  val buffToRead = BUFFERS.any { buffName.value == it.name }
+                            println(buffToRead)
+						  if (buffToRead) TRUE else NIL
+    }),
+
+    MalSymbol("autocomplete-prompt") to MalFunction({ a: ISeq ->
+        val autocompleteText = a.first() as? MalString ?: throw MalException("takes a str arg")
+            textHook.value = autocompleteText.getVal()
+        NIL
+    }),
+
+    MalSymbol("point-min") to MalFunction({a : ISeq ->
+        MalInteger(0)
+    }),
+    MalSymbol("point-max") to MalFunction({a : ISeq ->
+        MalInteger(CURRENT_BUFFER.value.buf.size)
+    }),
+    MalSymbol("read-region") to MalFunction({a : ISeq ->
+        val min =  a.first() as? MalInteger ?: throw MalException("takes a int arg")
+        val max =  a.nth(1) as? MalInteger ?: throw MalException("takes a int arg")
+        val clone = CURRENT_BUFFER.value.buf.copy()
+        NIL
+//        clone.skip(min)
+//        val temp = Buffer()
+//        temp.write(clone, offset=max)
+//        MalInteger(CURRENT_BUFFER.value.buf.size)
     }),
 
     // Take a type, update its documentation and return it?
@@ -148,6 +187,7 @@ val ns = hashMapOf<MalSymbol, MalType>(
         val throwable = a.nth(0)
         throw MalCoreException(pr_str(throwable), throwable)
     }),
+
 
 )
 

@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import org.kel.mics.ASYNC_BUFFER
 import org.kel.mics.Mal.MalString
 import org.kel.mics.Mal.MalType
 import org.kel.mics.Mal.NIL
@@ -88,7 +89,8 @@ actual suspend fun dispatchSocketCall(
             }
             println("Response status: ${response.status}")
             println("Response body: ${response.bodyAsText()}")
-        resVal.add(MalString(response.bodyAsText()!!.replace("<RNL>", "\r\n").replace("<NL>", "\n") ?: "(null)"))
+        resVal.add(MalString(response.bodyAsText() ?: "(null)"))
+        ASYNC_BUFFER.buf.writeUtf8(resVal.last().value)
         }
 
     return resVal.last()
