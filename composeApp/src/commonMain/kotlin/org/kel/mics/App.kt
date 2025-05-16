@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -45,6 +47,7 @@ import org.kel.mics.Mal.MalFunction
 import org.kel.mics.Mal.MalString
 import org.kel.mics.Mal.MalSymbol
 import org.kel.mics.Mal.NIL
+import org.kel.mics.Mal.bufferNs
 import org.kel.mics.Mal.eval
 import org.kel.mics.Mal.ns
 import org.kel.mics.Mal.rep
@@ -63,6 +66,7 @@ var text = mutableStateOf("")
 fun mmm () : Env {
     val repl_env = Env()
     ns.forEach({ it -> repl_env.set(it.key, it.value) })
+    bufferNs.forEach({ it -> repl_env.set(it.key, it.value) })
 
     // repl_env.set(MalSymbol("*ARGV*"), MalList(args.drop(1).map({ it -> MalString(it) }).toMutableList()))
 
@@ -91,6 +95,7 @@ fun mmm () : Env {
         println(repl_env.get("test")?.mal_print())
         NIL
     }))
+    repl_env.set(MalSymbol("CURRENT-BUFFER"), MalFunction({ a: ISeq -> MalString(CURRENT_BUFFER.value.name) }))
 
 
 
@@ -212,12 +217,19 @@ class MatchParenTransformation(
     }
 }
 
+fun lispEscape(str: String): String {
+    return str
+        .replace("\\", "\\\\")   // Escape backslashes first
+        .replace("\"", "\\\"")   // Then escape quotes
+        .replace("\n", "\\n")    // Optional: Escape newlines if needed
+}
+
 @Composable
 fun MultiBufferExample() {
 
-    var displayText by remember { mutableStateOf("") }
+    var displayText by remember { mutableStateOf("") } // TODO: fix this so this can be saved in the buffer
 
-    Column(modifier = Modifier.padding(16.dp).background(Color(
+    Column(modifier = Modifier.padding(16.dp).fillMaxHeight().background(Color(
         0XFFD1D2D4
     ))) {
 
@@ -235,39 +247,55 @@ fun MultiBufferExample() {
                 }
             }
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        TextField(
-            value = text.value,
-            visualTransformation = MatchParenTransformation(Color.Blue),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            onValueChange = { text.value = it },
-            label = { Text("") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Button(onClick = {
-            HISTORY_BUFFER.buf.writeUtf8("${text.value}\n")
-            MESSAGES_BUFFER.buf.writeUtf8("${rep(text.value, repl_env)}\n")
-            displayText = CURRENT_BUFFER.value.buf.snapshot().utf8()
-            text.value = if (textHook.value == null) { "" } else {
-                var autocomplete = textHook.value
-                textHook.value = ""
-                autocomplete
-            }
-        }) {
-            Text("Eval")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-        SelectionContainer {
-            LazyColumn(modifier = Modifier.fillMaxHeight(1f)) {
-                items(displayText.lines().size) { i ->
-                        Text(displayText.lines()[i])
+        Row(Modifier.weight(1f).fillMaxWidth()) {
+            SelectionContainer {
+                if (CURRENT_BUFFER.value.minorModes.contains("read-only-mode")) {
+                    LazyColumn(modifier = Modifier.fillMaxHeight(.8f)) { // TODO: Lazy column is a bad choice for this.. look at buynow lazy list
+                        items(displayText.lines().size) { i ->
+                            Text(displayText.lines()[i])
+                        }
                     }
+                } else {
+                    TextField(
+                        value= displayText,
+                        onValueChange = {
+                            displayText = it
+                            rep("(clear-buffer (CURRENT-BUFFER))", repl_env)
+                            val chunkSize = 1000
+                            displayText.chunked(chunkSize).forEach { chunk ->
+                                rep("(append-to-buffer (CURRENT-BUFFER) \"" + lispEscape(chunk) + "\")", repl_env)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().fillMaxHeight(1f)
+                    )
+                }
+
+            }
+        }
+//        Spacer(modifier = Modifier.weight(1f))
+        Row(modifier = Modifier.fillMaxWidth()) {
+            TextField(
+                value = text.value,
+                visualTransformation = MatchParenTransformation(Color.Blue),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                onValueChange = { text.value = it },
+                label = { Text("") },
+                modifier = Modifier.weight(.80f)
+            )
+
+            Button(
+                modifier = Modifier.weight(.20f).widthIn(50.dp, 100.dp),
+                onClick = {
+                HISTORY_BUFFER.buf.writeUtf8("${text.value}\n")
+                MESSAGES_BUFFER.buf.writeUtf8("${rep(text.value, repl_env)}\n")
+                displayText = CURRENT_BUFFER.value.buf.snapshot().utf8()
+                text.value = if (textHook.value == null) { "" } else {
+                    var autocomplete = textHook.value
+                    textHook.value = ""
+                    autocomplete
+                }
+            }) {
+                Text("Eval")
             }
         }
     }

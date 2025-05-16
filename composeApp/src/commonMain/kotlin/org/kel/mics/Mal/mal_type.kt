@@ -1,4 +1,7 @@
 package org.kel.mics.Mal
+
+import kelmics.composeapp.generated.resources.Res
+
 open class MalException(message: String?) : Exception(message), MalType {
     override var metadata: MalType = NIL
     override fun mal_print(): String {
@@ -22,6 +25,24 @@ class MalCoreException(message: String, val value: MalType) : MalException(messa
         return exception
     }
 }
+
+
+enum class Type {
+    INT, STRING, SYMBOL, FUNCTION, LIST, ANY;
+
+    fun MakeMalType(x : Any?) : MalType {
+        // Try
+        return when (this) {
+            INT -> MalInteger(x as Long)
+            STRING -> MalString(x as String)
+            SYMBOL -> MalSymbol(x as String)
+            LIST -> MalList(x as MutableList<MalType>)
+            else -> MalException("Cannot translate ${x} into a MALType")
+            //is Function -> MalFunction(x as ISeq)
+        }
+    }
+}
+
 
 interface MalType {
     var metadata: MalType
@@ -121,11 +142,10 @@ interface ILambda : MalType {
 }
 
 
-open class MalFunction(val lambda: (ISeq) -> MalType?) : MalType, ILambda {
-    override fun mal_print(): String = "TODO: Function"
+open class MalFunction(val lambda: (ISeq) -> MalType?, Args: List<Type?> = listOf(), val docs: String? = "") : MalType, ILambda {
+    override fun mal_print(): String = docs ?: "No Documentation Supplied"
     var is_macro: Boolean = false
     override var metadata: MalType = NIL
-
     override fun apply(seq: ISeq): MalType = lambda(seq)!!
 
     override fun with_meta(meta: MalType): MalType {

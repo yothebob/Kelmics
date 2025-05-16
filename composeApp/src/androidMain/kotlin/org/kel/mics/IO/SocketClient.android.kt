@@ -9,6 +9,7 @@ import io.ktor.utils.io.readUTF8Line
 import io.ktor.utils.io.writeStringUtf8
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.kel.mics.ASYNC_BUFFER
 import org.kel.mics.Mal.MalString
 import org.kel.mics.Mal.MalType
 import org.kel.mics.Mal.NIL
@@ -65,6 +66,7 @@ actual suspend fun dispatchSocketCall(
             withContext(Dispatchers.Main) {
                 resVal.add(MalString(response!!.replace("<RNL>", "\r\n").replace("<NL>", "\n") ?: "(null)"))
             }
+            ASYNC_BUFFER.buf.writeUtf8(resVal.last().value)
             resVal.last()
         }
     } catch (e: Exception) {

@@ -1,16 +1,11 @@
 package org.kel.mics.Mal
 
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.toMutableStateList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okio.Buffer
-import okio.Sink
 import org.kel.mics.ASYNC_BUFFER
 import org.kel.mics.BUFFERS
 import org.kel.mics.CURRENT_BUFFER
@@ -18,27 +13,126 @@ import org.kel.mics.IO.dispatchSocketCall
 import org.kel.mics.IO.readFileToStr
 import org.kel.mics.IO.translateNewLines
 import org.kel.mics.textHook
-import kotlin.time.Duration.Companion.seconds
 
 val asyncOutputVal =  mutableStateListOf<MalString>(MalString(""))
 
+
+fun malArgTypes(argumentList: List<Type?>, suppliedArgs: ISeq) : MalType {
+    argumentList.forEachIndexed { i, it ->
+        if (it != null) {
+            if (it.MakeMalType(suppliedArgs.nth(i).getVal()) == suppliedArgs.nth(i)) {
+                return MalException("Argument ${i}: ${it.MakeMalType(suppliedArgs.nth(i).getVal())} could not be cast into ${it} type.")
+            }
+        }
+    }
+    return NIL
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
+
+//val bufferNs = // TODO: add buffer related functions here, update (ns) function so you can print out specific things in namespace...
+val bufferNs = hashMapOf<MalSymbol, MalType>(
+    MalSymbol("read-buffer") to MalFunction({a : ISeq ->
+        val buffName = a.first() as? MalString ?: throw MalException("takes a str arg")
+        val buffToRead = BUFFERS.first { buffName.value == it.name }
+        MalString(buffToRead.buf.snapshot().utf8())
+    }, docs="(read-buffer BUFFNAME:MALSTRING) -> MALSTRING \n  reads BUFFNAME buffer and returns contents"),
+
+    MalSymbol("write-buffer") to MalFunction({a : ISeq ->
+        val buffName = a.first() as? MalString ?: throw MalException("takes a str arg")
+        val buffContents = a.nth(1) as? MalString ?: throw MalException("takes a str arg")
+        val buffToWrite = BUFFERS.first { buffName.value == it.name }
+        println("buffContents, ${buffContents.value}")
+        buffToWrite.buf.writeUtf8(buffContents.value)
+        NIL
+    }, docs="(write-buffer BUFFNAME:MALSTRING BUFFCONTENTS:MALSTRING) -> NIL \n  writes BUFFCONTENTS to BUFFNAME buffer and returns nil"),
+    MalSymbol("delete-buffer") to MalFunction({a : ISeq ->
+        val buffName = a.first() as? MalString ?: throw MalException("takes a str arg")
+        BUFFERS = BUFFERS.filter { it.name != buffName.value }.toMutableStateList()
+        NIL
+    }),
+    MalSymbol("append-to-buffer") to MalFunction({a : ISeq ->
+        val buffName = a.first() as? MalString ?: throw MalException("takes a str arg")
+        val buffer = BUFFERS.first { buffName.value == it.name }
+        val contents = a.nth(1) as? MalString ?: throw MalException("takes a str arg")
+        buffer.buf.writeUtf8(contents.value)
+        NIL
+    }, docs = "(append-to-buffer BUFFNAME:MALSTRING CONTENTS:MALSTRING) -> NIL \n  Takes CONTENTS and appends it to BUFFNAME."),
+    MalSymbol("buffer-exists") to MalFunction({a : ISeq ->
+        val buffName = a.first() as? MalString ?: throw MalException("takes a str arg")
+        val buffToRead = BUFFERS.any { buffName.value == it.name }
+        println(buffToRead)
+        if (buffToRead) TRUE else NIL
+    }),
+    MalSymbol("clear-buffer") to MalFunction({a : ISeq ->
+        val buffName = a.first() as? MalString ?: throw MalException("takes a str arg")
+        val buffToWrite = BUFFERS.first { buffName.value == it.name }
+        buffToWrite.buf.clear()
+        NIL
+    }, docs="(clear-buffer BUFFNAME:MALSTRING) -> NIL \n  Clears BUFFNAME"),
+    MalSymbol("delete-buffer") to MalFunction({a : ISeq ->
+        val buffName = a.first() as? MalString ?: throw MalException("takes a str arg")
+        BUFFERS = BUFFERS.filter { it.name != buffName.value }.toMutableStateList()
+        NIL
+    }),
+    MalSymbol("read-region") to MalFunction({a : ISeq ->
+        val min =  a.first() as? MalInteger ?: throw MalException("takes a int arg")
+        val max =  a.nth(1) as? MalInteger ?: throw MalException("takes a int arg")
+        val clone = CURRENT_BUFFER.value.buf.peek()
+        clone.skip(min.value)
+        MalString(clone.readByteString(max.value - min.value).toString())
+    }, docs="(read-region MIN:MALSTRING MAX:MALSTRING) -> MALSTRING\n  read content from a buffer from MIN to MAX position"),
+    MalSymbol("buffer-variable") to MalFunction({a : ISeq -> // TODO: fix this so you can remove
+        val bufferVar =  a.first() as? MalString ?: throw MalException("takes a string arg")
+        val bufferArg =  a.nth(1) as? MalString ?: throw MalException("takes a string arg")
+        val buffer =  a.nth(2) as? MalString ?: throw MalException("takes a string arg")
+        val foundBuffer = BUFFERS.first { buffer.value == it.name }
+        when (bufferVar.value) {
+            "minor-mode" -> foundBuffer.minorModes.add(bufferArg.value)
+            "remove-minor-mode" -> foundBuffer.minorModes.remove(bufferArg.value)
+            else -> {}
+        }
+        NIL
+    }, docs="(buffer-variable BUFFERVAR:MALSTRING bufferArg:MALSTRING BUFFERNAME:MALSTRING) -> NIL\n  update a buffer (found by BUFFERNAME) variable, specified by BUFFERVAR"),
+)
+
 val ns = hashMapOf<MalSymbol, MalType>(
-    MalSymbol("+") to MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger + y as MalInteger }) }),
-    MalSymbol("-")to MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger - y as MalInteger }) }),
-    MalSymbol("*") to MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger * y as MalInteger }) }),
-    MalSymbol("/") to MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger / y as MalInteger }) }),
+    MalSymbol("+") to MalFunction({ a: ISeq ->
+        a.seq().reduce({ x, y -> x as MalInteger + y as MalInteger }) }, Args=listOf(
+        Type.INT,
+        Type.INT
+    )),
+    MalSymbol("-")to MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger - y as MalInteger }) }, Args=listOf(
+        Type.INT,
+        Type.INT
+    )),
+    MalSymbol("*") to MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger * y as MalInteger }) }, Args=listOf(
+        Type.INT,
+        Type.INT
+    )),
+    MalSymbol("/") to MalFunction({ a: ISeq -> a.seq().reduce({ x, y -> x as MalInteger / y as MalInteger }) },
+        Args=listOf(
+            Type.INT,
+            Type.INT
+        )),
 
     MalSymbol("prn") to MalFunction({ a: ISeq ->
         println(a.seq().map { it.mal_print() }.joinToString(" "))
-        NIL }),
+        NIL },
+        Args=listOf(
+            Type.STRING,
+        )),
     MalSymbol("str") to MalFunction({ a: ISeq ->
         MalString(a.seq().map { it.mal_print() }.joinToString(" "))}),
     MalSymbol("pr-str") to MalFunction({ a: ISeq ->
-					MalString(a.seq().map { it.mal_print() }.joinToString(""))}),
+					MalString(a.seq().map { it.mal_print() }.joinToString(""))}, docs="(pr-str MALSTRING+) -> MALSTRING\n  adds mal_print() values together and returns"),
     MalSymbol("string-concat") to MalFunction({ a: ISeq ->
-        MalString(a.seq().map { it.mal_print() }.joinToString(""))}),
-
+        MalString(a.seq().map { it.mal_print() }.joinToString(""))}, docs="(string-concat MALSTRING+) -> MALSTRING\n  adds mal_print() values together and returns"),
+    MalSymbol("string-split") to MalFunction({ a: ISeq ->
+        val splitter = a.first() as? MalString ?: throw MalException("takes a str arg")
+        val toSplit = a.nth(1) as? MalString ?: throw MalException("takes a str arg")
+        MalList( toSplit.value.split(splitter.value).map { MalString(it) }.toMutableList())
+        }, docs="(string-split SPLITTER:MALSTRING str:MALSTRING) -> MALLIST\n  split STR by SPLITTER, returning mallist."),
 
     MalSymbol("list") to MalFunction({ a: ISeq -> MalList(a.seq().toMutableList()) }),
     MalSymbol("list?") to MalFunction({ a: ISeq -> if (a.first() is MalList) { TRUE } else { FALSE } }),
@@ -97,37 +191,12 @@ val ns = hashMapOf<MalSymbol, MalType>(
 //            ASYNC_BUFFER.buf.writeUtf8("${translateNewLines(result.getVal())}")
         }
         MalString(asyncOutputVal.last().value)
-    }),
+    }, docs="(remote-shell-command CMD:MAL_STRING ADDRS:MALSTRING) -> NIL \n  Takes a bash CMD and ip ADDRS and runs the CMD, putting result in *Remote-msg* buffer"),
 
     MalSymbol("translate-new-lines") to MalFunction({a : ISeq ->
         val str = a.first() as? MalString ?: throw MalException("takes a str arg")
         MalString(translateNewLines(str.value))
-    }),
-    MalSymbol("read-buffer") to MalFunction({a : ISeq ->
-        val buffName = a.first() as? MalString ?: throw MalException("takes a str arg")
-        val buffToRead = BUFFERS.first { buffName.value == it.name }
-        MalString(buffToRead.buf.snapshot().utf8())
-    }),
-
-    MalSymbol("write-buffer") to MalFunction({a : ISeq ->
-        val buffName = a.first() as? MalString ?: throw MalException("takes a str arg")
-        val buffContents = a.nth(1) as? MalString ?: throw MalException("takes a str arg")
-        val buffToWrite = BUFFERS.first { buffName.value == it.name }
-        println("buffContents, ${buffContents.value}")
-        buffToWrite.buf.writeUtf8(buffContents.value)
-        NIL
-    }),
-    MalSymbol("delete-buffer") to MalFunction({a : ISeq ->
-        val buffName = a.first() as? MalString ?: throw MalException("takes a str arg")
-        BUFFERS = BUFFERS.filter { it.name != buffName.value }.toMutableStateList()
-        NIL
-    }),
-    MalSymbol("buffer-exists") to MalFunction({a : ISeq ->
-						  val buffName = a.first() as? MalString ?: throw MalException("takes a str arg")
-						  val buffToRead = BUFFERS.any { buffName.value == it.name }
-                            println(buffToRead)
-						  if (buffToRead) TRUE else NIL
-    }),
+    }, docs="(translate-new-lines STR:MALSTRING) -> MALSTRING \n  converts remote-shell-command nl to newlines/carrige breaks"),
 
     MalSymbol("autocomplete-prompt") to MalFunction({ a: ISeq ->
         val autocompleteText = a.first() as? MalString ?: throw MalException("takes a str arg")
@@ -141,24 +210,11 @@ val ns = hashMapOf<MalSymbol, MalType>(
     MalSymbol("point-max") to MalFunction({a : ISeq ->
         MalInteger(CURRENT_BUFFER.value.buf.size)
     }),
-    MalSymbol("read-region") to MalFunction({a : ISeq ->
-        val min =  a.first() as? MalInteger ?: throw MalException("takes a int arg")
-        val max =  a.nth(1) as? MalInteger ?: throw MalException("takes a int arg")
-        val clone = CURRENT_BUFFER.value.buf.copy()
-        NIL
-//        clone.skip(min)
-//        val temp = Buffer()
-//        temp.write(clone, offset=max)
-//        MalInteger(CURRENT_BUFFER.value.buf.size)
-    }),
-
     // Take a type, update its documentation and return it?
     MalSymbol("set-doc") to MalFunction({ a: ISeq -> a.first().documentation = a.nth(1).toString()
         a.first()
     }),
     MalSymbol("doc") to MalFunction({ a: ISeq -> read_str(a.first().documentation) }),
-
-
     MalSymbol("cons") to MalFunction({ a: ISeq -> if (a.nth(1) is MalList) {
         val newlist = (a.nth(1) as MalList).seq().toMutableList()
         newlist.add(0, a.first())
@@ -185,10 +241,8 @@ val ns = hashMapOf<MalSymbol, MalType>(
     }),
     MalSymbol("throw") to MalFunction({ a: ISeq ->
         val throwable = a.nth(0)
-        throw MalCoreException(pr_str(throwable), throwable)
+        MalCoreException(pr_str(throwable), throwable)
     }),
-
-
 )
 
 

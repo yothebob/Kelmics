@@ -68,10 +68,10 @@ _UI/App_
 - [ ] dired clone
 - [ ] support split window displaying multiple buffers
 - [ ] add https://github.com/Animeshz/keyboard-mouse-kt support
+- [ ] Add paren match highlighting in minibuffer
 - [X] adapt wasmjs build to be able to connect to remote server
 - [X] add command history, (as a default buffer?)
 - [X] Add selectable/copyable text
-- [ ] I think Async buffer should be a list? or should have a special newline
 
 _name space commands_
 - [X] delete-buffer command
@@ -88,6 +88,7 @@ _Buffers_
   
 _MAL_
 - [ ] finish MAL language
+- [ ] Add support for Async functions
 - [ ] add safe typing and documentation for functions.
 - [ ] add HttpClient with hooks for integrating into MAL
   
