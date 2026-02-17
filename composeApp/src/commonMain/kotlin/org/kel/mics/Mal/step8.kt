@@ -130,13 +130,13 @@ fun eval(_ast: MalType, _env: Env): MalType {
 //                                    println("119 ${x.value.mal_print()}")
 //                                    return x.value
 //                                }
-                                else -> throw MalException("cannot execute non-function")
+                                else -> return MalException("cannot execute non-function")
                             }
                         }
                     }
                 }
             }
-            is MalSymbol -> return env.get(ast.value) ?: throw MalException("'${ast.value}' not found")
+            is MalSymbol -> return env.get(ast.value) ?: return MalException("'${ast.value}' not found")
             is MalVector -> return ast.elements.fold(MalVector(), { a, b -> a.conj_BANG(eval(b, env)); a })
             is MalHashMap -> return ast.elements.entries.fold(MalHashMap(), { a, b -> a.assoc_BANG(b.key, eval(b.value, env)); a })
             else -> return ast

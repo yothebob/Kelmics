@@ -12,7 +12,7 @@ class KelBuffer(name: String, windowType: WindowTypeEnum = WindowTypeEnum.TEXT) 
     var windowType = windowType
     var buf = Buffer()
     var fileName = "" // TODO: Look at cled on how this was done.
-    var majorMode = ""// TODO: This should take something (a new mal type?) that can be expanded and changes how the page is rendered/ behaves
+    var majorMode = "fundamental-mode"
     var minorModes = mutableListOf("")
 
     // update

@@ -52,7 +52,7 @@ interface MalType {
             documentation = value
         }
     fun with_meta(meta: MalType): MalType
-    fun mal_print(): String = ""
+    fun mal_print(): String = documentation.toString()
     fun getVal(): String = ""
     fun truthy(): Boolean {
         return when (this) {
@@ -142,7 +142,7 @@ interface ILambda : MalType {
 }
 
 
-open class MalFunction(val lambda: (ISeq) -> MalType?, Args: List<Type?> = listOf(), val docs: String? = "") : MalType, ILambda {
+open class MalFunction(val lambda: (ISeq) -> MalType?, Args: List<Type?> = listOf(), var docs: String? = "") : MalType, ILambda {
     override fun mal_print(): String = docs ?: "No Documentation Supplied"
     var is_macro: Boolean = false
     override var metadata: MalType = NIL
@@ -167,6 +167,7 @@ class MalFnFunction(val ast: MalType, val params: Sequence<MalSymbol>, val env: 
 interface ISeq : MalType {
     fun seq(): Sequence<MalType>
     fun first(): MalType
+    fun firstOrNull(): MalType?
     fun rest(): ISeq
     fun nth(n: Int): MalType
     fun count(): Int
@@ -194,6 +195,7 @@ abstract class MalSequence(val elements: MutableList<MalType>) : MalType, IMutab
 
     override fun seq(): Sequence<MalType> = elements.asSequence()
     override fun first(): MalType = elements.first()
+    override fun firstOrNull(): MalType? = elements.firstOrNull()
     override fun nth(n: Int): MalType = elements.elementAt(n)
     override fun count(): Int = elements.count()
 

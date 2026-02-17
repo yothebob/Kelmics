@@ -5,6 +5,7 @@ import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
+import io.ktor.utils.io.read
 import io.ktor.utils.io.readUTF8Line
 import io.ktor.utils.io.writeStringUtf8
 import kotlinx.coroutines.Dispatchers
@@ -60,7 +61,7 @@ actual suspend fun dispatchSocketCall(
             sendChannel.flush()
             println("Message sent. Waiting for response...")
 
-            val response = receiveChannel.readUTF8Line()
+            val response = receiveChannel.readUTF8Line(max=100)
             println("Received: $response")
 
             withContext(Dispatchers.Main) {

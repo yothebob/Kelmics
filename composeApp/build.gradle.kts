@@ -134,7 +134,10 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "org.kel.mics"
+            linux {
+                iconFile.set(project.file("src/androidMain/ic_launcher-playstore.png"))
+            }
+            packageName = "kelmics"
             packageVersion = "1.0.0"
         }
     }

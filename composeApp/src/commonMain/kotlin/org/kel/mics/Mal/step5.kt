@@ -1,5 +1,7 @@
 package org.kel.mics.Mal
 
+import org.kel.mics.Mal.Namespaces.ns
+
 
 fun step5createEnv() : Env {
     var totalEnv = Env()

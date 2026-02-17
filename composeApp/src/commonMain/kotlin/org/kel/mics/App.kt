@@ -2,6 +2,7 @@ package org.kel.mics
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,7 +26,11 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -37,19 +42,23 @@ import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import io.ktor.util.reflect.typeInfo
+import kelmics.composeapp.generated.resources.Res
 import okio.Buffer
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.kel.mics.Buffers.KelBuffer
+import org.kel.mics.Buffers.MajorModes.OrgDocument
+import org.kel.mics.Buffers.MajorModes.OrgMode
+import org.kel.mics.Buffers.MajorModes.WebMode
+import org.kel.mics.Buffers.MajorModes.parseOrg
 import org.kel.mics.Mal.Env
 import org.kel.mics.Mal.ISeq
 import org.kel.mics.Mal.MalFunction
 import org.kel.mics.Mal.MalString
 import org.kel.mics.Mal.MalSymbol
 import org.kel.mics.Mal.NIL
-import org.kel.mics.Mal.bufferNs
+import org.kel.mics.Mal.Namespaces.bufferNs
+import org.kel.mics.Mal.Namespaces.ns
 import org.kel.mics.Mal.eval
-import org.kel.mics.Mal.ns
 import org.kel.mics.Mal.rep
 import kotlin.reflect.typeOf
 
@@ -57,10 +66,9 @@ var MESSAGES_BUFFER = KelBuffer(name="*Messages*")
 var CURRENT_BUFFER = mutableStateOf<KelBuffer>(MESSAGES_BUFFER)
 var HISTORY_BUFFER = KelBuffer(name="*History*")
 var ASYNC_BUFFER = KelBuffer("*Remote-msg*")
-var BUFFERS = mutableStateListOf<KelBuffer>(MESSAGES_BUFFER, ASYNC_BUFFER, HISTORY_BUFFER)
+var BUFFERS = mutableStateListOf<KelBuffer>(MESSAGES_BUFFER, ASYNC_BUFFER, HISTORY_BUFFER, KelBuffer("*Help*"))
 var backgroundColor = mutableStateOf(0XFF15467B)
 var textHook = mutableStateOf("")
-var text = mutableStateOf("")
 
 
 fun mmm () : Env {
@@ -95,15 +103,14 @@ fun mmm () : Env {
         println(repl_env.get("test")?.mal_print())
         NIL
     }))
-    repl_env.set(MalSymbol("CURRENT-BUFFER"), MalFunction({ a: ISeq -> MalString(CURRENT_BUFFER.value.name) }))
-
-
 
     rep("(def! not (fn* (a) (if a false true)))", repl_env)
     rep("(def! find-file (fn* (fname) (create-buffer fname (slurp fname))))", repl_env)
     rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))", repl_env)
     rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))", repl_env)
     rep("(def! switch-create-buffer (fn* (buffer-name) (if (buffer-exists buffer-name) (switch-buffer buffer-name) (do (create-buffer buffer-name) (switch-buffer buffer-name)))))", repl_env)
+    rep("(write-buffer \"*Help*\" (ns))",repl_env)
+    rep("(def! org-mode (fn* () (if (= (get-major-mode) \"org-mode\") (buffer-variable \"major-mode\" \"fundamental-mode\" (str (CURRENT-BUFFER))) (buffer-variable \"major-mode\" \"org-mode\" (str (CURRENT-BUFFER))))))", repl_env) // TODO: if current-buffer-major-mode == org-mode turn off
     return repl_env
 
 //if (args.any()) {
@@ -139,46 +146,25 @@ fun MalBuffer(
     }
 }
 
-@Composable
-fun MiniBuffer(modifier: Modifier = Modifier, bufferContents: MutableState<String>) {
-    var input = remember { mutableStateOf("") }
-    var output = remember { mutableStateOf("") }
-
-    Row(modifier = modifier) {
-        TextField(value = input.value,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            onValueChange = { input.value = it}
-        )
-    }
-    Row {
-        Button(onClick = {
-            output.value = rep(input.value, repl_env)
-            HISTORY_BUFFER.buf.writeUtf8("${input.value}\n")
-            MESSAGES_BUFFER.buf.writeUtf8("${output.value}\n")
-            bufferContents.value = MESSAGES_BUFFER.buf.snapshot().utf8()
-        }) {
-            Text("Evaluate")
-        }
-    }
+enum class WindowType {
+    LEFT, RIGHT, TOP, BOTTOM, FULL
 }
+
+data class Window(var location: WindowType, var curentBuffer: KelBuffer, var focused: Boolean = false, var childWindow: Window? = null)
+
+var WINDOWS = mutableStateListOf<Window>(Window(location = WindowType.FULL, curentBuffer = CURRENT_BUFFER.value))
+
+
 
 @Composable
 @Preview
 fun App() {
     val contents = remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
     MaterialTheme {
         Column {
-            MultiBufferExample()
-//            MiniBuffer(bufferContents=contents)
-//            Row(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-//                MalBuffer(
-//                    modifier = Modifier.padding(10.dp),
-//                    readOnly = true,
-//                    buffer = CURRENT_BUFFER.value,
-//                    contents = contents,
-//                    name = "*Messages*"
-//                )
-//            }
+            val parentWindow = WINDOWS.first()
+            WindowRenderer(parentWindow, focusRequester)
         }
     }
 }
@@ -224,79 +210,257 @@ fun lispEscape(str: String): String {
         .replace("\n", "\\n")    // Optional: Escape newlines if needed
 }
 
+
 @Composable
-fun MultiBufferExample() {
-
-    var displayText by remember { mutableStateOf("") } // TODO: fix this so this can be saved in the buffer
-
-    Column(modifier = Modifier.padding(16.dp).fillMaxHeight().background(Color(
-        0XFFD1D2D4
-    ))) {
-
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            BUFFERS.forEach { buff ->
-                Button(
-                    onClick = {
-                        CURRENT_BUFFER.value = buff
-                        displayText = buff.buf.snapshot().utf8()
-                    },
-                    colors = if (buff.name == CURRENT_BUFFER.value.name) ButtonDefaults.buttonColors(MaterialTheme.colors.primary)
-                    else ButtonDefaults.buttonColors(MaterialTheme.colors.secondary)
-                ) {
-                    Text(buff.name)
-                }
+fun FundamentalMode(modifier: Modifier = Modifier, displayText: String, updateDisplayText: (String) -> Unit) {
+    if (CURRENT_BUFFER.value.minorModes.contains("read-only-mode")) {
+        LazyColumn(modifier = modifier.fillMaxHeight(.8f)) {
+            items(displayText.lines().size, key= { it.hashCode() } ) { i ->
+                Text(displayText.lines()[i])
             }
         }
-        Row(Modifier.weight(1f).fillMaxWidth()) {
-            SelectionContainer {
-                if (CURRENT_BUFFER.value.minorModes.contains("read-only-mode")) {
-                    LazyColumn(modifier = Modifier.fillMaxHeight(.8f)) { // TODO: Lazy column is a bad choice for this.. look at buynow lazy list
-                        items(displayText.lines().size) { i ->
-                            Text(displayText.lines()[i])
-                        }
-                    }
-                } else {
-                    TextField(
-                        value= displayText,
-                        onValueChange = {
-                            displayText = it
-                            rep("(clear-buffer (CURRENT-BUFFER))", repl_env)
-                            val chunkSize = 1000
-                            displayText.chunked(chunkSize).forEach { chunk ->
-                                rep("(append-to-buffer (CURRENT-BUFFER) \"" + lispEscape(chunk) + "\")", repl_env)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth().fillMaxHeight(1f)
-                    )
+    } else {
+        TextField(
+            value= displayText,
+            onValueChange = {
+                updateDisplayText(it)
+                rep("(clear-buffer (CURRENT-BUFFER))", repl_env)
+                val chunkSize = 1000
+                displayText.chunked(chunkSize).forEach { chunk ->
+                    rep("(append-to-buffer (CURRENT-BUFFER) \"" + lispEscape(chunk) + "\")", repl_env)
                 }
+            },
+            modifier = modifier.fillMaxWidth().fillMaxHeight(1f)
+        )
+    }
+}
 
-            }
-        }
-//        Spacer(modifier = Modifier.weight(1f))
-        Row(modifier = Modifier.fillMaxWidth()) {
-            TextField(
-                value = text.value,
-                visualTransformation = MatchParenTransformation(Color.Blue),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                onValueChange = { text.value = it },
-                label = { Text("") },
-                modifier = Modifier.weight(.80f)
-            )
-
+@Composable
+fun UIBufferSelector(window: Window, updateDisplayText: (String) -> Unit) {
+    var selectedButtonBuffer by remember { mutableStateOf(window.curentBuffer.name) }
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.SpaceEvenly) {
+        BUFFERS.forEach { buff ->
             Button(
-                modifier = Modifier.weight(.20f).widthIn(50.dp, 100.dp),
                 onClick = {
-                HISTORY_BUFFER.buf.writeUtf8("${text.value}\n")
-                MESSAGES_BUFFER.buf.writeUtf8("${rep(text.value, repl_env)}\n")
-                displayText = CURRENT_BUFFER.value.buf.snapshot().utf8()
-                text.value = if (textHook.value == null) { "" } else {
+                    selectedButtonBuffer = buff.name
+                    window.curentBuffer = buff
+                    updateDisplayText(buff.buf.snapshot().utf8())
+                },
+                colors = if (buff.name == selectedButtonBuffer) ButtonDefaults.buttonColors(MaterialTheme.colors.primary)
+                else ButtonDefaults.buttonColors(MaterialTheme.colors.secondary)
+            ) {
+                Text(buff.name)
+            }
+        }
+    }
+}
+
+
+@Composable
+fun MiniBufferPrompt(updateDisplayText: (String) -> Unit) {
+    var text by remember { mutableStateOf("")}
+    Row(modifier = Modifier.fillMaxWidth()) {
+        TextField(
+            value = text,
+            visualTransformation = MatchParenTransformation(Color.Blue),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            onValueChange = { text = it },
+            label = { Text("") },
+            modifier = Modifier.weight(.80f)
+        )
+
+        Button(
+            modifier = Modifier.weight(.20f).widthIn(50.dp, 100.dp),
+            onClick = {
+                HISTORY_BUFFER.buf.writeUtf8("${text}\n")
+                MESSAGES_BUFFER.buf.writeUtf8("${rep(text, repl_env)}\n")
+		updateDisplayText(CURRENT_BUFFER.value.buf.snapshot().utf8()) // TODO: is this right??
+                text = if (textHook.value == null) { "" } else {
                     var autocomplete = textHook.value
                     textHook.value = ""
                     autocomplete
                 }
             }) {
-                Text("Eval")
+            Text("Eval")
+        }
+    }
+}
+
+
+
+
+@Composable
+fun WindowRenderer(window: Window, focusRequester: FocusRequester) {
+    var loading by remember { mutableStateOf(false)}
+
+    LaunchedEffect(WINDOWS.size) {
+        loading = true
+        loading = false
+    }
+    // TODO: fix this, this is not letting window split happen in a split window
+    if (window.childWindow != null) {
+	when (window.childWindow!!.location) {
+            WindowType.TOP -> {
+                Column {
+                    Row(modifier = Modifier.weight(0.5f)) {
+                        MultiBufferExample(
+                            modifier = Modifier.focusRequester(focusRequester)
+                                .onFocusChanged { focusState ->
+                                    if (focusState.isFocused) {
+                                        window.focused = true
+                                        println("${window} is focused!")
+                                    } else {
+                                        window.focused = false
+                                        println("unfocused...")
+                                    }
+                                }, window.childWindow!!
+                        )
+                    }
+                    Row(Modifier.weight(0.5f), verticalAlignment = Alignment.Bottom) {
+                        MultiBufferExample(
+                            modifier = Modifier.focusRequester(focusRequester)
+                                .onFocusChanged { focusState ->
+                                    if (focusState.isFocused) {
+                                        window.focused = true
+                                        println("${window} is focused!")
+                                    } else {
+                                        window.focused = false
+                                        println("unfocused...")
+                                    }
+                                }, window
+                        )
+                    }
+                }
+            }
+            WindowType.BOTTOM -> {
+                Column {
+                    Row(Modifier.weight(0.5f), verticalAlignment = Alignment.Top) {
+                        MultiBufferExample(modifier = Modifier.focusRequester(focusRequester).onFocusChanged { focusState ->
+                            if (focusState.isFocused) {
+                                window.focused = true
+                                println("${window} is focused!")
+                            } else {
+                                window.focused = false
+                                println("unfocused...")
+                            }
+                        }, window)
+                    }
+                    Row(Modifier.weight(0.5f),  verticalAlignment = Alignment.Bottom) {
+                        MultiBufferExample(modifier = Modifier.focusRequester(focusRequester).onFocusChanged { focusState ->
+                            if (focusState.isFocused) {
+                                window.focused = true
+                                println("${window} is focused!")
+                            } else {
+                                window.focused = false
+                                println("unfocused...")
+                            }
+                        }, window.childWindow!!)
+                    }
+                }
+            }
+            WindowType.LEFT -> {
+                Row {
+                    Column(Modifier.weight(0.5f), horizontalAlignment = Alignment.Start) {
+                        MultiBufferExample(
+                            modifier = Modifier.focusRequester(focusRequester)
+                                .onFocusChanged { focusState ->
+                                    if (focusState.isFocused) {
+                                        window.focused = true
+                                        println("${window} is focused!")
+                                    } else {
+                                        window.focused = false
+                                        println("unfocused...")
+                                    }
+                                }, window.childWindow!!
+                        )
+                    }
+                    Column(Modifier.weight(0.5f), horizontalAlignment = Alignment.End) {
+                        MultiBufferExample(
+                            modifier = Modifier.focusRequester(focusRequester)
+                                .onFocusChanged { focusState ->
+                                    if (focusState.isFocused) {
+                                        window.focused = true
+                                        println("${window} is focused!")
+                                    } else {
+                                        window.focused = false
+                                        println("unfocused...")
+                                    }
+                                }, window
+                        )
+                    }
+                }
+            }
+            WindowType.RIGHT -> {
+                Row {
+                    Column(Modifier.weight(0.5f), horizontalAlignment = Alignment.End) {
+                        MultiBufferExample(
+                            modifier = Modifier.focusRequester(focusRequester)
+                                .onFocusChanged { focusState ->
+                                    if (focusState.isFocused) {
+                                        window.focused = true
+                                        println("${window} is focused!")
+                                    } else {
+                                        window.focused = false
+                                        println("unfocused...")
+                                    }
+                                }, window
+                        )
+                    }
+                    Column(Modifier.weight(0.5f), horizontalAlignment = Alignment.Start) {
+                        MultiBufferExample(
+                            modifier = Modifier.focusRequester(focusRequester)
+                                .onFocusChanged { focusState ->
+                                    if (focusState.isFocused) {
+                                        window.focused = true
+                                        println("${window} is focused!")
+                                    } else {
+                                        window.focused = false
+                                        println("unfocused...")
+                                    }
+                                }, window.childWindow!!
+                        )
+                    }
+                }
+            }
+            else -> {
+		MultiBufferExample(modifier = Modifier.focusRequester(focusRequester).onFocusChanged { focusState ->
+				       if (focusState.isFocused) {
+					   window.focused = true
+					   println("${window} is focused!")
+				       } else {
+					   window.focused = false
+					   println("unfocused...")
+				       }
+				   }, window)
+	    }
+	}
+    } else {
+        MultiBufferExample(modifier = Modifier.focusRequester(focusRequester).onFocusChanged { focusState ->
+            if (focusState.isFocused) {
+                window.focused = true
+                println("${window} is focused!")
+            } else {
+                window.focused = false
+                println("unfocused...")
+            }
+        }, window)
+    }
+}
+
+@Composable
+fun MultiBufferExample(modifier: Modifier = Modifier, window: Window) {
+    var displayText by remember { mutableStateOf(window.curentBuffer.buf.snapshot().utf8()) }
+    Column(modifier = modifier.padding(16.dp).fillMaxHeight().background(Color(0XFFD1D2D4))) {
+        UIBufferSelector(window, { displayText = it })
+        Row(modifier.weight(1f).fillMaxWidth()) {
+            SelectionContainer(modifier) {
+                when (window.curentBuffer.majorMode) {
+                    "org-mode" -> {   OrgMode(modifier, displayText) }
+                    "web-mode" -> { WebMode() }
+                    else -> { FundamentalMode(modifier, displayText, {displayText = it}) }
+                }
             }
         }
+	MiniBufferPrompt({displayText = it})
     }
 }

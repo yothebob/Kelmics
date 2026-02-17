@@ -35,6 +35,11 @@ class Env(val outer: Env?, binds: Sequence<MalSymbol>?, exprs: Sequence<MalType>
     fun showNamespace() : MalType {
         var acc = ""
         val stringifiedSpace = data.entries.forEach { it -> acc += "[${it.key}] => ${it.value.mal_print()}\n"}
+        // TODO:  here manually add special forms
+        acc = acc + """[if] => (if STATEMENT (IS TRUE) (ELSE))
+            [do] => (do (first thing) (second thing) ... ) equal to progn
+            [] => 
+        """.trimMargin()
         return MalString(acc)
     }
 

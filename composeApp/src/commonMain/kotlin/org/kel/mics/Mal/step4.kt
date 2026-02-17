@@ -1,5 +1,6 @@
 package org.kel.mics.Mal
 
+import org.kel.mics.Mal.Namespaces.ns
 
 
 private fun createEnv() : Env {

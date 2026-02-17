@@ -56,17 +56,23 @@ You can open the web application by running the `:composeApp:wasmJsBrowserDevelo
 # build wasm
 ./gradlew wasmJsBrowserDistribution
 
+Desktop deb release?
+composeApp -> Tasks -> compose desktop -> packageReleaseDeb
+
 
 
 * TODO LIST
 
 _UI/App_
 - [ ] add varible hooks into app color scheme
-- [ ] the mini-buffer prompt open/close.
+- [ ] Break mini-buffer out into
+  - [ ] the mini-buffer prompt open/close
+  - [ ] Only one (no matter # of windows)
 - [ ] mini-buffer auto complete
 - [ ] macro support
-- [ ] dired clone
+- [X] support mutliple windows
 - [ ] support split window displaying multiple buffers
+- [ ] fully impl kelwindow focusing 
 - [ ] add https://github.com/Animeshz/keyboard-mouse-kt support
 - [ ] Add paren match highlighting in minibuffer
 - [X] adapt wasmjs build to be able to connect to remote server
@@ -79,12 +85,20 @@ _name space commands_
 - [X] add write-buffer command (write-buffer "BUFFER-NAME" "contents") => NIL /returns NIL, append writes string to buffer contents/
 - [ ] add read-remote-file
 - [ ] write remote-file
+- [ ] repeat-complex-arg
+- [ ] split-window-right
 - [ ] save-file command (save-file CURRENT-BUFFER) => NIL (save buffer contents into file)
 
 _Buffers_
 - [ ] add file-path to kelBuffer, allowing name to be more of a display name
-- [ ] add major-mode to kelbuffer (html w/ html render & highlighting, md/org rendering etc)
-- [ ] editable buffers
+- [X] add major-mode to kelbuffer
+- [ ] html major mode w/ html render
+- [ ] major mode generic syntax highlighting
+- [ ] Add basic buffer-list mode
+- [ ] Add dired mode
+- [X] org rendering
+- [ ] md rendering
+- [X] editable buffers
   
 _MAL_
 - [ ] finish MAL language
