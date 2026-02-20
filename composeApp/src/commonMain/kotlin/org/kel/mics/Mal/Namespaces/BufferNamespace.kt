@@ -1,7 +1,10 @@
+@file:OptIn(ExperimentalUuidApi::class)
+
 package org.kel.mics.Mal.Namespaces
 
 import androidx.compose.runtime.toMutableStateList
 import org.kel.mics.BUFFERS
+import org.kel.mics.Buffers.KelBuffer
 import org.kel.mics.CURRENT_BUFFER
 import org.kel.mics.Mal.ISeq
 import org.kel.mics.Mal.MalException
@@ -12,9 +15,12 @@ import org.kel.mics.Mal.MalSymbol
 import org.kel.mics.Mal.MalType
 import org.kel.mics.Mal.NIL
 import org.kel.mics.Mal.TRUE
+import org.kel.mics.Mal.rep
 import org.kel.mics.WINDOWS
 import org.kel.mics.Window
 import org.kel.mics.WindowType
+import org.kel.mics.reload
+import kotlin.uuid.ExperimentalUuidApi
 
 val bufferNs = hashMapOf<MalSymbol, MalType>(
     MalSymbol("read-buffer") to MalFunction({a : ISeq ->
@@ -63,7 +69,8 @@ val bufferNs = hashMapOf<MalSymbol, MalType>(
     MalSymbol("read-region") to MalFunction({a : ISeq ->
         val min =  a.first() as? MalInteger ?: throw MalException("takes a int arg")
         val max =  a.nth(1) as? MalInteger ?: throw MalException("takes a int arg")
-        val clone = CURRENT_BUFFER.value.buf.peek()
+        val focusedWindow = WINDOWS.first { w -> w.focused == true }
+        val clone = focusedWindow.curentBuffer.buf.peek()
         clone.skip(min.value)
         MalString(clone.readByteString(max.value - min.value).toString())
     }, docs="(read-region MIN:MALSTRING MAX:MALSTRING) -> MALSTRING\n  read content from a buffer from MIN to MAX position"),
@@ -71,23 +78,24 @@ val bufferNs = hashMapOf<MalSymbol, MalType>(
         val bufferVar =  a.first() as? MalString ?: throw MalException("takes a string arg")
         val bufferArg =  a.nth(1) as? MalString ?: throw MalException("takes a string arg")
         val buffer =  a.nth(2) as? MalString ?: throw MalException("takes a string arg")
-        val foundBuffer = BUFFERS.first { buffer.value == it.name }
+        val foundBuffer = BUFFERS.firstOrNull { buffer.value == it.name }
         when (bufferVar.value) {
-            "major-mode" -> foundBuffer.majorMode = bufferArg.value
-            "minor-mode" -> foundBuffer.minorModes.add(bufferArg.value)
-            "remove-minor-mode" -> foundBuffer.minorModes.remove(bufferArg.value)
-            else -> {}
+            "major-mode" -> foundBuffer?.majorMode = bufferArg.value
+            "minor-mode" -> foundBuffer?.minorModes?.add(bufferArg.value)
+            "remove-minor-mode" -> foundBuffer?.minorModes?.remove(bufferArg.value)
+            else -> { println("$foundBuffer was not found: input name ${buffer}") }
         }
         NIL
     }, docs="(buffer-variable BUFFERVAR:MALSTRING bufferArg:MALSTRING BUFFERNAME:MALSTRING) -> NIL\n  update a buffer (found by BUFFERNAME) variable, specified by BUFFERVAR"),
     MalSymbol("get-major-mode") to MalFunction({a : ISeq ->
-        val curBuffName =  a.firstOrNull() as? MalString ?: MalString(CURRENT_BUFFER.value.name)
-        println(curBuffName)
+        val focusedWindow = WINDOWS.first { w -> w.focused == true }
+        val curBuffName =  a.firstOrNull() as? MalString ?: MalString(focusedWindow.curentBuffer.name)
+        println("CurBuffName: $curBuffName")
         val foundBuffer = BUFFERS.first { curBuffName.value == it.name }
-        println(foundBuffer)
+        println("foundBuffer: $foundBuffer")
         MalString(foundBuffer.majorMode)
     }, docs="(get-major-mode BUFFERNAME:MALSTRING) -> MALSTRING\n get BUFFERNAME major-mode or get CURRENT-BUFFER"),
-    MalSymbol("new-window-below") to MalFunction({ a: ISeq -> // TODO: this works but does not initally re-render the buffer correctly
+    MalSymbol("new-window-below") to MalFunction({ a: ISeq ->
         val focusedWindow = WINDOWS.first { w -> w.focused == true }
         focusedWindow.location = WindowType.TOP
         val belowWindow = Window(location = WindowType.BOTTOM, focused = false, curentBuffer = focusedWindow.curentBuffer)
@@ -95,7 +103,7 @@ val bufferNs = hashMapOf<MalSymbol, MalType>(
 	    focusedWindow.childWindow = belowWindow
         NIL
     }),
-    MalSymbol("new-window-right") to MalFunction({ a: ISeq -> // TODO: this works but does not initally re-render the buffer correctly
+    MalSymbol("new-window-right") to MalFunction({ a: ISeq ->
         val focusedWindow = WINDOWS.first { w -> w.focused == true }
         focusedWindow.location = WindowType.LEFT
         val rightWindow = Window(location = WindowType.RIGHT, focused = false, curentBuffer = focusedWindow.curentBuffer)
@@ -103,16 +111,26 @@ val bufferNs = hashMapOf<MalSymbol, MalType>(
 	    focusedWindow.childWindow = rightWindow
         NIL
     }),
-    MalSymbol("delete-other-windows") to MalFunction({ a: ISeq -> // TODO: this works but does not initally re-render the buffer correctly
+    MalSymbol("delete-other-windows") to MalFunction({ a: ISeq ->
         val focusedWindow = WINDOWS.first { w -> w.focused == true }
         focusedWindow.location = WindowType.FULL
 	focusedWindow.childWindow = null
         WINDOWS.removeAll{ w -> !w.focused }
         NIL
     }),
-    // MalSymbol("CURRENT-BUFFER") to MalFunction({ a: ISeq -> MalString(CURRENT_BUFFER.value.name) }), // phasing out...
+    MalSymbol("next-buffer") to MalFunction({ a: ISeq ->
+
+        val focusedWindow = WINDOWS.first { w -> w.focused == true }
+        val bufferIdx = BUFFERS.indexOf(focusedWindow.curentBuffer)
+        if ((bufferIdx + 1) >= (BUFFERS.size - 1)) {
+            focusedWindow.curentBuffer = BUFFERS[0]
+        } else {
+            focusedWindow.curentBuffer = BUFFERS[bufferIdx + 1]
+        }
+        NIL
+    }),
     MalSymbol("CURRENT-BUFFER") to MalFunction({ a: ISeq ->
         val focusedWindow = WINDOWS.first { w -> w.focused == true }
         MalString(focusedWindow.curentBuffer.name)
-    }) // phasing in...
+    })
 )

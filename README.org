@@ -65,20 +65,23 @@ composeApp -> Tasks -> compose desktop -> packageReleaseDeb
 
 _UI/App_
 - [ ] add varible hooks into app color scheme
-- [ ] Break mini-buffer out into
-  - [ ] the mini-buffer prompt open/close
-  - [ ] Only one (no matter # of windows)
+- [ ] the mini-buffer prompt open/close
 - [ ] mini-buffer auto complete
 - [ ] macro support
 - [X] support mutliple windows
 - [ ] support split window displaying multiple buffers
-- [ ] fully impl kelwindow focusing 
+- [X] fully impl kelwindow focusing 
 - [ ] add https://github.com/Animeshz/keyboard-mouse-kt support
 - [ ] Add paren match highlighting in minibuffer
 - [X] adapt wasmjs build to be able to connect to remote server
 - [X] add command history, (as a default buffer?)
 - [X] Add selectable/copyable text
+- [ ] Convert minibuffer prompt to only have one (regardless of # of windows), it needs to take in an arg
+      EX: (web-mode) -> prompts in minibuffer "URL: " -> then run "(web-mode %s)"
+- [ ] add swipe gesture shortcuts?
+- [ ] Add emacs like top menu bar with options for things to do
 
+      
 _name space commands_
 - [X] delete-buffer command
 - [X] add read-buffer command (read-buffer "BUFFER-NAME") => "returns the buffer contents as malstring"
@@ -86,7 +89,8 @@ _name space commands_
 - [ ] add read-remote-file
 - [ ] write remote-file
 - [ ] repeat-complex-arg
-- [ ] split-window-right
+- [X] split-window-right
+- [X] eval-buffer  
 - [ ] save-file command (save-file CURRENT-BUFFER) => NIL (save buffer contents into file)
 
 _Buffers_
@@ -94,10 +98,11 @@ _Buffers_
 - [X] add major-mode to kelbuffer
 - [ ] html major mode w/ html render
 - [ ] major mode generic syntax highlighting
-- [ ] Add basic buffer-list mode
+- [X] Add basic buffer-list mode
 - [ ] Add dired mode
 - [X] org rendering
 - [ ] md rendering
+- [X] basic Image render Mode  
 - [X] editable buffers
   
 _MAL_

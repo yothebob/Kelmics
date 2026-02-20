@@ -21,17 +21,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-class KelmicsApp: Application() {
-    companion object {
-        lateinit var appCtx: Context
-
-    }
-
-    override fun onCreate() {
-        super.onCreate()
-        appCtx = applicationContext
-    }
-}
 
 
 //@Preview

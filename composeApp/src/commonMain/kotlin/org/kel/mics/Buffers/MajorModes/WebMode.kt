@@ -57,23 +57,25 @@ fun WebBuffer(url: String = "https://google.com") {
 fun WebMode() {
     // TODO: pop up a mini buffer asking for url, then route to url.. on a keyclick do popup getting url...
     var url = remember { mutableStateOf("https://google.com")}
-    val requester = remember { FocusRequester() }
+//    val requester = remember { FocusRequester() }
 
-    Box(Modifier        .onKeyEvent {
-        if (it.isCtrlPressed && it.key == Key.A) {
-            println("Ctrl + A is pressed")
-            true
-        } else {
-            // let other handlers receive this event
-            false
-        }
-    }.focusRequester(requester)
-        .focusable()
-        .size(10.dp)) {
-    }
+    WebBuffer()
 
-    LaunchedEffect(Unit) {
-        requester.requestFocus()
-    }
+//    Box(Modifier        .onKeyEvent {
+//        if (it.isCtrlPressed && it.key == Key.A) {
+//            println("Ctrl + A is pressed")
+//            true
+//        } else {
+//            // let other handlers receive this event
+//            false
+//        }
+//    }.focusRequester(requester)
+//        .focusable()
+//        .size(10.dp)) {
+//    }
+
+//    LaunchedEffect(Unit) {
+//        requester.requestFocus()
+//    }
 }
 

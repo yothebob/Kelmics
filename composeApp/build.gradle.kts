@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+
 }
 
 kotlin {
@@ -34,6 +35,7 @@ kotlin {
     repositories {
         mavenCentral()
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+//        maven("https://jogamp.org/deployment/maven")
         google()
     }
 
@@ -62,6 +64,7 @@ kotlin {
     sourceSets {
         val desktopMain by getting
         val okioVersion = "3.10.2"
+        val platform = "linux"
 
         androidMain.dependencies {
             implementation(compose.preview)
@@ -70,10 +73,14 @@ kotlin {
             implementation(libs.kotlinx.coroutines.android)
         }
         commonMain.dependencies {
+//            implementation("io.github.kevinnzou:compose-webview-multiplatform:2.0.3")
 //            implementation("io.ktor:ktor-network:2.3.8")
+            implementation("io.coil-kt.coil3:coil-compose:3.3.0")
+            implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material)
+            implementation(compose.material3)
             implementation(compose.ui)
             implementation(compose.components.resources)
             implementation(compose.components.uiToolingPreview)
@@ -89,6 +96,13 @@ kotlin {
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutines.swing)
+            val javafxVersion = "23"
+            implementation("org.openjfx:javafx-base:$javafxVersion:$platform")
+            implementation("org.openjfx:javafx-graphics:$javafxVersion:$platform")
+            implementation("org.openjfx:javafx-media:$javafxVersion:$platform")
+            implementation("org.openjfx:javafx-controls:$javafxVersion:$platform")
+            implementation("org.openjfx:javafx-web:$javafxVersion:$platform")
+            implementation("org.openjfx:javafx-swing:$javafxVersion:$platform")
         }
         wasmWasiMain.dependencies {
             implementation("io.ktor:ktor-client-websockets-wasm-js:3.1.2")
@@ -98,7 +112,7 @@ kotlin {
 
 android {
     namespace = "org.kel.mics"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "org.kel.mics"
