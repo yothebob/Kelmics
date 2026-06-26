@@ -1,19 +1,11 @@
 #+TITLE: Kelmics 
 
-_About_
- TODO
+* About
 
-_Usage_
+This project has a custom lisp interpreter built within kotlin multiplatform, Allowing support for manipulating UI and buffers, opening/splitting windows, writing files and evaluating code and alot more!
 
-
-_Installation_
-
-
-_Building_
-
-
-_wiki_
-
+[[./screenshot.jpg]]
+ 
 * Building
 This is a Kotlin Multiplatform project targeting Android, iOS, Web, Desktop, Server.
 
